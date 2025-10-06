@@ -17,7 +17,8 @@
 // C++」→「コード生成」→「拡張命令セットを有効にする」
 // のところの設定の変更も忘れずに。
 
-#define USE_AVX2
+#define IS_ARM
+// #define USE_AVX2
 // #define USE_SSE42
 // #define USE_SSE41
 // #define USE_SSSE3
