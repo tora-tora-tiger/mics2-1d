@@ -51,9 +51,6 @@ RUN python3 -m pip install --upgrade pip \
     pylint \
     autopep8
 
-# Claude Code のインストール
-RUN curl -fsSL https://claude.ai/install | sh
-
 # ユーザーの作成
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
@@ -61,7 +58,7 @@ RUN groupadd --gid $USER_GID $USERNAME \
     && chmod 0440 /etc/sudoers.d/$USERNAME
 
 # 作業ディレクトリの設定
-WORKDIR /workspace
+WORKDIR /workspaces
 
 # ユーザーの切り替え
 USER $USERNAME
@@ -69,6 +66,9 @@ USER $USERNAME
 # Python のエイリアス設定
 RUN echo "alias python='python3'" >> ~/.bashrc \
     && echo "alias pip='pip3'" >> ~/.bashrc
+
+# Claude Code をユーザーとしてインストール
+RUN curl -fsSL https://claude.ai/install.sh | bash
 
 # PATH の設定
 ENV PATH="/home/${USERNAME}/.local/bin:${PATH}"
