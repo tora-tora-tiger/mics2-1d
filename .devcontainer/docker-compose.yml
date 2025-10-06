@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  cpp-dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        USERNAME: vscode
+        USER_UID: 1000
+        USER_GID: 1000
+    volumes:
+      - ..:/workspace:cached
+    command: sleep infinity
+    environment:
+      - DISPLAY=${DISPLAY}
+    networks:
+      - dev-network
+
+networks:
+  dev-network:
+    driver: bridge

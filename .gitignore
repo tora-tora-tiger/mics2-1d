@@ -1,0 +1,36 @@
+.env
+.env.local
+.env.*.local
+
+# 一般的な開発環境の無視ファイル
+.DS_Store
+.vscode/settings.json
+build/
+obj/
+*.log
+
+# IDE
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio 2015 cache/options directory
+.vs/
+*.vcxproj.user
+*.vcxproj.filters

@@ -1,0 +1,44 @@
+{
+  "name": "C++ Development Container",
+  "build": {
+    "context": "..",
+    "dockerfile": "Dockerfile"
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "C_Cpp.default.cppStandard": "c++17",
+        "C_Cpp.default.cStandard": "c11",
+        "C_Cpp.default.compilerPath": "/usr/bin/gcc",
+        "C_Cpp.default.includePath": [
+          "/usr/include",
+          "/usr/local/include"
+        ],
+        "files.associations": {
+          "*.cpp": "cpp",
+          "*.h": "c",
+          "*.hpp": "cpp"
+        }
+      },
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools",
+        "ms-python.python",
+        "ms-vscode.vscode-json",
+        "Anthropic.claude-code"
+      ]
+    }
+  },
+  "forwardPorts": [8080],
+  "postCreateCommand": "gcc --version && python3 --version",
+  "containerEnv": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"
+  },
+  "runArgs": [
+    "--env-file",
+    ".env"
+  ],
+  "remoteUser": "vscode"
+}
