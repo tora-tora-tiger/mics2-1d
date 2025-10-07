@@ -32,13 +32,17 @@
     }
   },
   "forwardPorts": [8080],
-  "postCreateCommand": "gcc --version && python3 --version",
-  "containerEnv": {
+  "mounts": [
+    "source=${env:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+  ],
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",
     "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"
   },
+  "postCreateCommand": "gcc --version && python3 --version && ln -sf \"$SSH_AUTH_SOCK\" /tmp/ssh-agent.sock",
   "runArgs": [
     "--env-file",
-    ".env"
+    ".devcontainer/.env"
   ],
   "remoteUser": "vscode"
 }
