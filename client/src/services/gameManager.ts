@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import ShogiEngineClient from './shogiEngineClient.js';
-import { Game, CreateGameRequest, GameState, EngineResponse } from './types/game.js';
+import { Game, CreateGameRequest, GameState, EngineResponse } from '../types/game.js';
 
 /**
  * 将棋対局マネージャー
@@ -78,7 +78,8 @@ export class GameManager extends EventEmitter {
 
     } catch (error) {
       console.error(`Failed to start game ${gameId}:`, error);
-      this.emit('error', { gameId, error: error.message });
+      const message = error instanceof Error ? error.message : String(error);
+      this.emit('error', { gameId, error: message });
       return false;
     }
   }
