@@ -41,15 +41,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # pip のアップグレードと基本的なPythonパッケージのインストール
-RUN python3 -m pip install --upgrade pip \
-    && pip3 install --no-cache-dir \
-    numpy \
-    matplotlib \
-    pandas \
-    jupyter \
-    ipython \
-    pylint \
-    autopep8
+RUN python3 -m pip install --upgrade pip
+#     && pip3 install --no-cache-dir \
+#     numpy \
+#     matplotlib \
+#     pandas \
+#     jupyter \
+#     ipython \
+#     pylint \
+#     autopep8
 
 # ユーザーの作成
 RUN groupadd --gid $USER_GID $USERNAME \
