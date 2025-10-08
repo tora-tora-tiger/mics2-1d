@@ -1,15 +1,13 @@
 import { Hono } from 'hono';
 import { GameController } from '../controllers/gameController.js';
 import { HealthController } from '../controllers/healthController.js';
-import { upgradeWebSocket } from '@hono/node-ws';
 
 /**
  * APIルート定義
  */
 export function createApiRoutes(
   gameController: GameController,
-  healthController: HealthController,
-  wsCallback: (ws: WebSocket) => void
+  healthController: HealthController
 ): Hono {
   const app = new Hono();
 
@@ -23,19 +21,6 @@ export function createApiRoutes(
   app.post('/games/:gameId/start', (c) => gameController.startGame(c));
   app.post('/games/:gameId/stop', (c) => gameController.stopGame(c));
   app.delete('/games/:gameId', (c) => gameController.endGame(c));
-
-  // WebSocketエンドポイント
-  app.get('/ws', upgradeWebSocket(() => ({
-    onOpen(event, ws) {
-      wsCallback(ws);
-    },
-    onMessage(event, ws) {
-      // WebSocketメッセージはWebSocketServiceで処理
-    },
-    onClose(event, ws) {
-      // 接続終了処理はWebSocketServiceで管理
-    }
-  })));
 
   return app;
 }

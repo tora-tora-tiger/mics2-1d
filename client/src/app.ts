@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { createNodeWebSocket } from '@hono/node-ws';
 import { serve } from '@hono/node-server';
 import { GameManager } from './services/gameManager.js';
 import { WebSocketService } from './services/websocketService.js';
@@ -37,20 +36,15 @@ export class App {
    * ルートを設定
    */
   private setupRoutes(): void {
-    // WebSocket統合
-    const { injectWebSocket } = createNodeWebSocket({ app: this.app });
-
     // APIルートを設定
     const apiRoutes = createApiRoutes(
       this.gameController,
-      this.healthController,
-      (ws) => this.handleWebSocketConnection(ws)
+      this.healthController
     );
 
     this.app.route('/', apiRoutes);
 
-    // WebSocketを統合
-    injectWebSocket(this.app);
+    // WebSocketは後で別途設定
   }
 
   /**
@@ -110,16 +104,16 @@ export class App {
     try {
       logInfo(`Starting server on port ${config.port}...`);
 
-      await new Promise<void>((resolve) => {
-        serve({
-          fetch: this.app.fetch,
-          port: config.port,
-        }, () => {
-          logInfo(`Server running on http://localhost:${config.port}`);
-          logInfo(`WebSocket available at ws://localhost:${config.port}/ws`);
-          resolve();
-        });
+      // まず通常のHTTPサーバーを起動
+      const server = serve({
+        fetch: this.app.fetch,
+        port: config.port,
       });
+
+      logInfo(`Server running on http://localhost:${config.port}`);
+
+      // WebSocket機能は一時的に無効化
+      logInfo('WebSocket temporarily disabled');
 
     } catch (error) {
       logError('Failed to start server', { error });
