@@ -28,7 +28,8 @@
         "ms-python.python",
         "ms-vscode.vscode-json",
         "Anthropic.claude-code",
-        "MermaidChart.vscode-mermaid-chart"
+        "MermaidChart.vscode-mermaid-chart",
+        "oderwat.indent-rainbow"
       ]
     }
   },
