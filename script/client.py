@@ -90,10 +90,10 @@ def main(ip, port, config_json):
     # #########################################################################################
     # Socket-IO Events BEGIN
     # #########################################################################################
-    sio = socketio.Client()
+    sio = socketio.Client(logger=True, engineio_logger=True)
 
     @sio.event(namespace='/match')
-    def connect(data=None):
+    def connect():
         """Connect to the matching server.
         """
         sio.emit('login', engine_info, namespace='/match')
@@ -146,7 +146,7 @@ def main(ip, port, config_json):
 
         If a client gets this message, the client has to ask the engine a next move.
         """
-        if nextmove.ponder is not None:
+        if hasattr(nextmove, 'ponder') and nextmove.ponder is not None:
             # If ponder is set, judge whether the ponder move is the same as the actual move.
             if nextmove.ponder == data['position'].split()[-1]:
                 # If ponder is the same, send `ponderhit` command to the USI engine.
@@ -169,7 +169,7 @@ def main(ip, port, config_json):
         # Sfen representation of the current position.
         sfen_position = 'position sfen ' + data['position']
 
-        if nextmove.ponder is None:
+        if not hasattr(nextmove, 'ponder') or nextmove.ponder is None:
             # Ask the USI engine a next move.
             send_message(usi_engine, sfen_position)
 
@@ -206,7 +206,7 @@ def main(ip, port, config_json):
     nextmove.ponder = None
 
     @sio.event(namespace='/match')
-    def disconnect(data=None):
+    def disconnect():
         """Disconnect from the matching server.
 
         After disconnection, quit the USI engine and this client.
@@ -220,7 +220,7 @@ def main(ip, port, config_json):
     # #########################################################################################
 
     url = 'http://{}:{}'.format(ip, port)
-    sio.connect(url)
+    sio.connect(url, namespaces=['/match'])
     sio.wait()
 
 if __name__ == '__main__':
