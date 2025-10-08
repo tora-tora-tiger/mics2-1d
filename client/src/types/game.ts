@@ -40,11 +40,3 @@ export interface EngineResponse {
   response: string;
   timestamp: Date;
 }
-
-/** WebSocketメッセージ */
-export interface WebSocketMessage {
-  type: 'engine_response' | 'game_state' | 'error' | 'game_created';
-  gameId: string;
-  data: any;
-  timestamp: Date;
-}
