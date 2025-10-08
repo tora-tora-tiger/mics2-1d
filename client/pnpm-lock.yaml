@@ -7,10 +7,26 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@hono/node-server':
+        specifier: ^1.19.5
+        version: 1.19.5(hono@4.9.10)
+      '@hono/node-ws':
+        specifier: ^1.2.0
+        version: 1.2.0(@hono/node-server@1.19.5(hono@4.9.10))(hono@4.9.10)
+      hono:
+        specifier: ^4.9.10
+        version: 4.9.10
+      ws:
+        specifier: ^8.18.3
+        version: 8.18.3
     devDependencies:
       '@types/node':
         specifier: ^24.7.0
         version: 24.7.0
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       tsx:
         specifier: ^4.20.6
         version: 4.20.6
@@ -176,8 +192,24 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@hono/node-server@1.19.5':
+    resolution: {integrity: sha512-iBuhh+uaaggeAuf+TftcjZyWh2GEgZcVGXkNtskLVoWaXhnJtC5HLHrU8W1KHDoucqO1MswwglmkWLFyiDn4WQ==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      hono: ^4
+
+  '@hono/node-ws@1.2.0':
+    resolution: {integrity: sha512-OBPQ8OSHBw29mj00wT/xGYtB6HY54j0fNSdVZ7gZM3TUeq0So11GXaWtFf1xWxQNfumKIsj0wRuLKWfVsO5GgQ==}
+    engines: {node: '>=18.14.1'}
+    peerDependencies:
+      '@hono/node-server': ^1.11.1
+      hono: ^4.6.0
+
   '@types/node@24.7.0':
     resolution: {integrity: sha512-IbKooQVqUBrlzWTi79E8Fw78l8k1RNtlDDNWsFZs7XonuQSJ8oNYfEeclhprUldXISRMLzBpILuKgPlIxm+/Yw==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   esbuild@0.25.10:
     resolution: {integrity: sha512-9RiGKvCwaqxO2owP61uQ4BgNborAQskMR6QusfWzQqv7AZOg5oGehdY2pRJMTKuwxd1IDBP4rSbI5lHzU7SMsQ==}
@@ -191,6 +223,10 @@ packages:
 
   get-tsconfig@4.11.0:
     resolution: {integrity: sha512-sNsqf7XKQ38IawiVGPOoAlqZo1DMrO7TU+ZcZwi7yLl7/7S0JwmoBMKz/IkUPhSoXM0Ng3vT0yB1iCe5XavDeQ==}
+
+  hono@4.9.10:
+    resolution: {integrity: sha512-AlI15ijFyKTXR7eHo7QK7OR4RoKIedZvBuRjO8iy4zrxvlY5oFCdiRG/V/lFJHCNXJ0k72ATgnyzx8Yqa5arug==}
+    engines: {node: '>=16.9.0'}
 
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha512-seS2Tj26TBVOC2NIc2rOe2y2ZO7efxITtLZcGSOnHHNOQ7CkiUBfw0Iw2ck6xkIhPwLhKNLS8BO+hEpngQlqzw==}
@@ -207,6 +243,18 @@ packages:
 
   undici-types@7.14.0:
     resolution: {integrity: sha512-QQiYxHuyZ9gQUIrmPo3IA+hUl4KYk8uSA7cHrcKd/l3p1OTpZcM0Tbp9x7FAtXdAYhlasd60ncPpgu6ihG6TOA==}
+
+  ws@8.18.3:
+    resolution: {integrity: sha512-PEIGCY5tSlUt50cqyMXfCzX+oOPqN0vuGqWzbcJ2xvnkzkq46oOpz7dQaTDBdfICb4N14+GARUDw2XV2N4tvzg==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
 
 snapshots:
 
@@ -288,9 +336,26 @@ snapshots:
   '@esbuild/win32-x64@0.25.10':
     optional: true
 
+  '@hono/node-server@1.19.5(hono@4.9.10)':
+    dependencies:
+      hono: 4.9.10
+
+  '@hono/node-ws@1.2.0(@hono/node-server@1.19.5(hono@4.9.10))(hono@4.9.10)':
+    dependencies:
+      '@hono/node-server': 1.19.5(hono@4.9.10)
+      hono: 4.9.10
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   '@types/node@24.7.0':
     dependencies:
       undici-types: 7.14.0
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 24.7.0
 
   esbuild@0.25.10:
     optionalDependencies:
@@ -328,6 +393,8 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
+  hono@4.9.10: {}
+
   resolve-pkg-maps@1.0.0: {}
 
   tsx@4.20.6:
@@ -340,3 +407,5 @@ snapshots:
   typescript@5.9.3: {}
 
   undici-types@7.14.0: {}
+
+  ws@8.18.3: {}

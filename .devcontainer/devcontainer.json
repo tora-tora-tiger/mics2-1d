@@ -27,7 +27,8 @@
         "ms-vscode.cmake-tools",
         "ms-python.python",
         "ms-vscode.vscode-json",
-        "Anthropic.claude-code"
+        "Anthropic.claude-code",
+        "MermaidChart.vscode-mermaid-chart"
       ]
     }
   },
