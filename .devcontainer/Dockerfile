@@ -40,6 +40,13 @@ RUN apt-get update && apt-get install -y \
     python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Node.js のインストール (NodeSourceリポジトリ使用)
+RUN curl -fsSL https://deb.nodesource.com/setup_current.x | bash - \
+    && apt-get install -y nodejs
+
+# pnpm のインストール
+RUN npm install -g pnpm
+
 # pip のアップグレードと基本的なPythonパッケージのインストール
 RUN python3 -m pip install --upgrade pip
 #     && pip3 install --no-cache-dir \

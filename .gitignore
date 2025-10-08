@@ -34,3 +34,5 @@ bld/
 .vs/
 *.vcxproj.user
 *.vcxproj.filters
+
+.pnpm-store

@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(gemini:*)"
+      "Bash(gemini:*)",
+      "Bash(pnpm add:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []
