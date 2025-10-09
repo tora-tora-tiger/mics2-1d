@@ -261,16 +261,16 @@ export default class ShogiEngineClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       let infoResponses: string[] = [];
 
-      const infoListener = (response: string) => {
-        if (response.startsWith('info')) {
-          infoResponses.push(response);
+      const infoListener = (event: { type: string; data: string }) => {
+        if (event.data.startsWith('info')) {
+          infoResponses.push(event.data);
         }
       };
 
-      const bestmoveListener = (response: string) => {
+      const bestmoveListener = (event: { type: string; data: string }) => {
         this.off('engine_response', infoListener);
         this.off('engine_response', bestmoveListener);
-        resolve([...infoResponses, response]);
+        resolve([...infoResponses, event.data]);
       };
 
       this.on('engine_response', infoListener);
@@ -301,38 +301,3 @@ export default class ShogiEngineClient extends EventEmitter {
   }
 }
 
-console.log("hello")
-
-const client = new ShogiEngineClient("../source/minishogi-by-gcc");
-
-// ストリーミング応答イベントをリッスン
-client.on('engine_response', (event: { type: string; data: string }) => {
-  console.log(`[ENGINE RESPONSE] ${event.type}: ${event.data}`);
-});
-
-// エラーイベントをリッスン
-client.on('error', (error: Error) => {
-  console.error(`[ENGINE ERROR] ${error.message}`);
-});
-
-// プロセス終了イベントをリッスン
-client.on('close', (code: number) => {
-  console.log(`[ENGINE CLOSED] Process exited with code ${code}`);
-});
-
-// 少し待ってからコマンドを送信
-setTimeout(async () => {
-  console.log("Sending commands with new API...");
-  try {
-    // 新しいAPIを使用してコマンド送信
-    const readyResponses = await client.isReady();
-    console.log("isready responses:", readyResponses);
-
-    console.log("Command sent successfully");
-  } catch (error) {
-    console.error("Failed to send command:", error);
-  }
-}, 1000);
-
-
-console.log("world");
