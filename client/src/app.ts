@@ -3,7 +3,6 @@ import { serve } from '@hono/node-server';
 import { GameManager } from './services/gameManager.js';
 import { WebSocketService } from './services/websocketService.js';
 import { GameController } from './controllers/gameController.js';
-import { HealthController } from './controllers/healthController.js';
 import { createApiRoutes } from './routes/api.js';
 import { logInfo, logError } from './utils/logger.js';
 import { config } from './utils/config.js';
@@ -18,14 +17,12 @@ export class App {
   private gameManager: GameManager;
   private wsService: WebSocketService;
   private gameController: GameController;
-  private healthController: HealthController;
 
   constructor() {
     this.app = new Hono();
     this.gameManager = new GameManager();
     this.wsService = new WebSocketService(this.gameManager);
     this.gameController = new GameController(this.gameManager);
-    this.healthController = new HealthController();
 
     this.setupRoutes();
     this.setupErrorHandling();
@@ -37,10 +34,7 @@ export class App {
    */
   private setupRoutes(): void {
     // APIルートを設定
-    const apiRoutes = createApiRoutes(
-      this.gameController,
-      this.healthController
-    );
+    const apiRoutes = createApiRoutes(this.gameController);
 
     this.app.route('/', apiRoutes);
 
