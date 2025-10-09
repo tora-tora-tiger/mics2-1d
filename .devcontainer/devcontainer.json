@@ -29,7 +29,8 @@
         "ms-vscode.vscode-json",
         "Anthropic.claude-code",
         "MermaidChart.vscode-mermaid-chart",
-        "oderwat.indent-rainbow"
+        "oderwat.indent-rainbow",
+        "mhutchie.git-graph"
       ]
     }
   },
