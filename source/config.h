@@ -3,7 +3,7 @@
 
 #define ENGINE_NAME "Sample"
 #define ENGINE_VERSION "1"
-#define AUTHOR "unknown"
+#define AUTHOR "tora-tora-tiger"
 
 // ----------------------------
 //      Target CPU
@@ -40,10 +40,10 @@
 // -- 以下、必要に応じてdefineする。
 
 // デバッグ時の標準出力への局面表示などに日本語文字列を用いる。
-#define PRETTY_JP
+// #define PRETTY_JP
 
 // デバッグ時の標準出力への局面表示のとき色を用いる。
-#define FONT_COLOR
+// #define FONT_COLOR
 
 // --- assertのレベルを6段階で。
 //  ASSERT_LV 0 : assertなし(全体的な処理が速い)
