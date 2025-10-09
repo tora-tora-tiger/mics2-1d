@@ -296,8 +296,8 @@ export default class ShogiEngineClient extends EventEmitter {
    * 思考を停止
    * @returns 応答文字列の配列
    */
-  async stop(): Promise<string[]> {
-    return this.sendCommand('stop');
+  stop(): void {
+    // return this.sendCommand('stop');
   }
 }
 

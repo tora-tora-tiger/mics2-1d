@@ -20,11 +20,13 @@ graph TB
         Logger[Logger]
     end
 
-    GameManager -->|game_created| App
+    GameManager -->|game_created| WSService2
     GameManager -->|game_started| WSService2
+    GameManager -->|game_stopped| WSService2
+    GameManager -->|game_ended| WSService2
     GameManager -->|engine_response| WSService2
     GameManager -->|error| WSService2
-    EngineClient -->|response| GameManager
+    EngineClient -->|engine_response| GameManager
     EngineClient -->|error| GameManager
     EngineClient -->|close| GameManager
 ```
@@ -37,6 +39,8 @@ graph TB
 対局が新規作成されたときに発火
 
 **エミッター**: `GameManager`
+
+**リスナー**: `WebSocketService`
 
 **データ**:
 ```typescript
@@ -53,10 +57,20 @@ interface Game {
 }
 ```
 
-**使用例**:
+**実装例**:
 ```typescript
-gameManager.on('game_created', (game: Game) => {
-  logInfo('New game created', { gameId: game.id, player: game.player });
+// src/services/gameManager.ts:39
+this.emit('game_created', game);
+
+// src/services/websocketService.ts:189
+this.gameManager.on('game_created', (game) => {
+  const message: WebSocketMessage = {
+    type: 'game_created',
+    gameId: game.id,
+    data: game,
+    timestamp: new Date()
+  };
+  this.broadcastToGame(game.id, message);
 });
 ```
 
@@ -64,6 +78,8 @@ gameManager.on('game_created', (game: Game) => {
 対局が開始されたときに発火
 
 **エミッター**: `GameManager`
+
+**リスナー**: `WebSocketService`
 
 **データ**:
 ```typescript
@@ -74,11 +90,20 @@ interface Game {
 }
 ```
 
-**使用例**:
+**実装例**:
 ```typescript
-gameManager.on('game_started', (game: Game) => {
-  logInfo('Game started', { gameId: game.id });
-  // ここで対局開始の処理（例: 監視開始、統計記録等）
+// src/services/gameManager.ts:91
+this.emit('game_started', game);
+
+// src/services/websocketService.ts:199
+this.gameManager.on('game_started', (game) => {
+  const message: WebSocketMessage = {
+    type: 'game_started',
+    gameId: game.id,
+    data: { state: 'started', game },
+    timestamp: new Date()
+  };
+  this.broadcastToGame(game.id, message);
 });
 ```
 
@@ -87,19 +112,7 @@ gameManager.on('game_started', (game: Game) => {
 
 **エミッター**: `GameManager`
 
-**データ**:
-```typescript
-interface Game {
-  id: string;
-  // ... Gameの全プロパティ
-  state: 'playing'; // まだendedではない
-}
-```
-
-#### `game_ended`
-対局が完全に終了したときに発火
-
-**エミッター**: `GameManager`
+**リスナー**: `WebSocketService`
 
 **データ**:
 ```typescript
@@ -110,15 +123,74 @@ interface Game {
 }
 ```
 
-### 2. エンジン関連イベント
+**実装例**:
+```typescript
+// src/services/gameManager.ts:124
+this.emit('game_stopped', game);
 
-#### `engine_response`
-将棋エンジンからの応答を受信したときに発火
+// src/services/websocketService.ts:209
+this.gameManager.on('game_stopped', (game) => {
+  const message: WebSocketMessage = {
+    type: 'game_stopped',
+    gameId: game.id,
+    data: { state: 'stopped', game },
+    timestamp: new Date()
+  };
+  this.broadcastToGame(game.id, message);
+});
+```
+
+#### `game_ended`
+対局が完全に終了したときに発火
 
 **エミッター**: `GameManager`
 
+**リスナー**: `WebSocketService`
+
 **データ**:
 ```typescript
+interface Game {
+  id: string;
+  // ... Gameの全プロパティ
+  state: 'ended';
+}
+```
+
+**実装例**:
+```typescript
+// src/services/gameManager.ts:151, 162
+this.emit('game_ended', game);
+
+// src/services/websocketService.ts:219
+this.gameManager.on('game_ended', (game) => {
+  const message: WebSocketMessage = {
+    type: 'game_ended',
+    gameId: game.id,
+    data: { state: 'ended', game },
+    timestamp: new Date()
+  };
+  this.broadcastToGame(game.id, message);
+});
+```
+
+### 2. エンジン関連イベント
+
+#### `engine_response`
+将棋エンジンからのストリーミング応答を受信したときに発火
+
+**エミッター**: `ShogiEngineClient`, `GameManager`
+
+**リスナー**: `GameManager`, `WebSocketService`
+
+**データ**:
+```typescript
+// ShogiEngineClientから
+interface EngineStreamEvent {
+  type: 'stream';
+  data: string;  // 'info ...' または 'bestmove ...'
+}
+
+// GameManagerから
 interface EngineResponse {
   gameId: string;
   command: string;
@@ -127,25 +199,32 @@ interface EngineResponse {
 }
 ```
 
-**使用例**:
+**実装例**:
 ```typescript
-gameManager.on('engine_response', (response: EngineResponse) => {
-  logInfo('Engine response received', {
-    gameId: response.gameId,
-    response: response.response
-  });
+// src/services/shogiEngineClient.ts:101
+this.emit('engine_response', { type: 'stream', data: trimmedLine });
 
-  // 最善手の応答を処理
-  if (response.response.startsWith('bestmove')) {
-    handleBestMove(response.gameId, response.response);
-  }
+// src/services/gameManager.ts:181
+this.emit('engine_response', engineResponse);
+
+// src/services/websocketService.ts:229
+this.gameManager.on('engine_response', (response) => {
+  const message: WebSocketMessage = {
+    type: 'engine_response',
+    gameId: response.gameId,
+    data: response,
+    timestamp: new Date()
+  };
+  this.broadcastToGame(response.gameId, message);
 });
 ```
 
 #### `error`
 エラーが発生したときに発火
 
-**エミッター**: `GameManager`, `EngineClient`
+**エミッター**: `GameManager`, `ShogiEngineClient`
+
+**リスナー**: `WebSocketService`
 
 **データ**:
 ```typescript
@@ -156,30 +235,55 @@ interface ErrorEvent {
 }
 ```
 
-**使用例**:
+**実装例**:
 ```typescript
-gameManager.on('error', (error: ErrorEvent) => {
-  logError('Game error', {
-    gameId: error.gameId,
-    error: error.error,
-    details: error.details
-  });
+// src/services/gameManager.ts:88, 97, 194
+this.emit('error', { gameId, error: error.message });
 
-  // エラーハンドリング
-  handleGameError(error.gameId, error.error);
+// src/services/websocketService.ts:239
+this.gameManager.on('error', (error) => {
+  const errorMessage: WebSocketMessage = {
+    type: 'error',
+    gameId: error.gameId,
+    data: { error: error.error },
+    timestamp: new Date()
+  };
+  this.broadcastToGame(error.gameId, errorMessage);
 });
 ```
 
 ### 3. エンジンクライアントイベント
 
-#### `response`
-エンジンからの生応答を受信
+#### `engine_response` (stream)
+エンジンからのストリーミング応答を受信
 
 **エミッター**: `ShogiEngineClient`
 
+**リスナー**: `ShogiEngineClient.go()`, 外部クライアント
+
 **データ**:
 ```typescript
-string // エンジンからの生レスポンス
+interface EngineStreamEvent {
+  type: 'stream';
+  data: string;  // 'info ...' または 'bestmove ...'
+}
+```
+
+**実装例**:
+```typescript
+// src/services/shogiEngineClient.ts:101
+if (trimmedLine.startsWith('info') || trimmedLine.startsWith('bestmove')) {
+  this.emit('engine_response', { type: 'stream', data: trimmedLine });
+}
+
+// src/services/shogiEngineClient.ts:276-277 (goメソッド内)
+this.on('engine_response', infoListener);
+this.on('engine_response', bestmoveListener);
+
+// テストコード
+client.on('engine_response', (event: { type: string; data: string }) => {
+  console.log(`[ENGINE RESPONSE] ${event.type}: ${event.data}`);
+});
 ```
 
 #### `close`
@@ -190,6 +294,81 @@ string // エンジンからの生レスポンス
 **データ**:
 ```typescript
 number // プロセス終了コード
+```
+
+**実装例**:
+```typescript
+// src/services/shogiEngineClient.ts:72
+this.emit('close', code);
+
+// テストコード
+client.on('close', (code: number) => {
+  console.log(`[ENGINE CLOSED] Process exited with code ${code}`);
+});
+```
+
+#### `error`
+エンジンプロセスでエラーが発生
+
+**エミッター**: `ShogiEngineClient`
+
+**データ**:
+```typescript
+Error // エラーオブジェクト
+```
+
+**実装例**:
+```typescript
+// src/services/shogiEngineClient.ts:78
+this.emit('error', error);
+
+// テストコード
+client.on('error', (error: Error) => {
+  console.error(`[ENGINE ERROR] ${error.message}`);
+});
+```
+
+## イベントの伝播フロー
+
+### 対局開始のイベントフロー
+
+```mermaid
+sequenceDiagram
+    participant Client as クライアント
+    participant API as API
+    participant GM as GameManager
+    participant Engine as EngineClient
+    participant Binary as エンジン
+
+    Client->>API: POST /games/{id}/start
+    API->>GM: startGame()
+    GM->>Engine: await usi()
+    Engine->>Binary: "usi"
+    Binary-->>Engine: "usiok"
+    Engine->>GM: emit('game_started')
+    GM->>WSService: emit('game_started')
+    Note over WSService: WebSocket有効時のみ
+    WSService->>Client: ブロードキャスト
+```
+
+### エンジン応答のイベントフロー
+
+```mermaid
+sequenceDiagram
+    participant Binary as エンジン
+    participant Engine as EngineClient
+    participant GM as GameManager
+    participant WS as WebSocketService
+    participant Client as クライアント
+
+    Binary->>Engine: "bestmove 7g7f"
+    Engine->>Engine: handleResponse()
+    Engine->>GM: emit('engine_response')
+    Note over Engine: { type: 'stream', data: 'bestmove 7g7f' }
+    GM->>GM: setupEngineListeners()
+    GM->>WS: emit('engine_response')
+    Note over WS: WebSocket有効時のみ
+    WS->>Client: ブロードキャスト
 ```
 
 ## イベントリスナーの設定例

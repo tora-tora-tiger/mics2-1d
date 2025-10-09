@@ -115,7 +115,8 @@ export class GameManager extends EventEmitter {
     try {
       // エンジンに停止コマンドを送信
       console.log(`[${gameId}] Stopping engine...`);
-      await engine.stop();
+      // stopはないから後で変える
+      engine.stop();
 
       // 状態を更新
       game.state = 'ended';
