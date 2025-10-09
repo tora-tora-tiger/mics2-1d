@@ -2,16 +2,33 @@ import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 
 /**
+ * 保留中のコマンド情報
+ */
+interface PendingCommand {
+  id: string;
+  command: string;
+  resolve: (value: string[]) => void;
+  reject: (error: Error) => void;
+  terminator?: string;
+  responses: string[];
+}
+
+/**
  * USIプロトコル対応の将棋エンジンクライアント
  *
  * 外部の将棋エンジンプロセスと通信し、USIコマンドを送受信する
  * イベント駆動型アーキテクチャで非同期応答を処理
+ * コマンドとレスポンスの相関を管理
  */
 export default class ShogiEngineClient extends EventEmitter {
   /** エンジンプロセス */
   private engine!: ReturnType<typeof spawn>;
   /** 応答データの一時バッファ */
   private responseBuffer: string = '';
+  /** 保留中のコマンドキュー */
+  private pendingCommands: Map<string, PendingCommand> = new Map();
+  /** コマンドシーケンス番号 */
+  private commandSequence = 0;
 
   /**
    * コンストラクタ
@@ -51,6 +68,7 @@ export default class ShogiEngineClient extends EventEmitter {
     // プロセス終了イベント
     this.engine.on('close', (code: number) => {
       console.log(`Engine process exited with code ${code}`);
+      this.cancelAllCommands();
       this.emit('close', code);
     });
 
@@ -70,29 +88,135 @@ export default class ShogiEngineClient extends EventEmitter {
     const lines = this.responseBuffer.split('\n');
     this.responseBuffer = lines.pop() || '';
 
-    // 各行をトリムしてイベント発火
+    // 各行をトリムして処理
     for (const line of lines) {
-      if (line.trim()) {
-        this.emit('response', line.trim());
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+
+      // コマンドとの相関をチェック
+      this.processCommandResponse(trimmedLine);
+
+      // ストリーミング応答は別途処理
+      if (trimmedLine.startsWith('info') || trimmedLine.startsWith('bestmove')) {
+        this.emit('engine_response', { type: 'stream', data: trimmedLine });
       }
     }
   }
 
   /**
-   * エンジンにコマンドを送信
-   * @param command USIコマンド
+   * コマンドの応答を処理
+   * @param line 応答行
    */
-  sendCommand(command: string): void {
-    if (this.engine.stdin) {
-      this.engine.stdin.write(command + '\n');
+  private processCommandResponse(line: string) {
+    // 最新の保留中コマンドを取得（FIFO）
+    const pending = this.getLatestPendingCommand();
+    if (!pending) return;
+
+    // 応答を記録
+    pending.responses.push(line);
+
+    // 終端文字列で完了判定
+    if (pending.terminator && line === pending.terminator) {
+      this.completeCommand(pending.id);
     }
   }
 
   /**
+   * 最新の保留中コマンドを取得
+   */
+  private getLatestPendingCommand(): PendingCommand | undefined {
+    const commands = Array.from(this.pendingCommands.values());
+    return commands.length > 0 ? commands[0] : undefined;
+  }
+
+  /**
+   * コマンドを完了処理
+   */
+  private completeCommand(commandId: string) {
+    const pending = this.pendingCommands.get(commandId);
+    if (pending) {
+      this.pendingCommands.delete(commandId);
+      pending.resolve(pending.responses);
+    }
+  }
+
+  /**
+   * すべての保留中コマンドをキャンセル
+   */
+  private cancelAllCommands() {
+    for (const pending of this.pendingCommands.values()) {
+      pending.reject(new Error('Engine connection closed'));
+    }
+    this.pendingCommands.clear();
+  }
+
+  /**
+   * エンジンにコマンドを送信（Promiseベース）
+   * @param command USIコマンド
+   * @param options オプション
+   */
+  async sendCommand(command: string, options?: {
+    terminator?: string;
+    timeout?: number;
+  }): Promise<string[]> {
+    if (!this.engine || !this.engine.stdin) {
+      throw new Error('エンジンが起動していません');
+    }
+
+    const commandId = `cmd_${++this.commandSequence}`;
+    const timeout = options?.timeout || 20000;
+
+    console.log(`[DEBUG] Engine process PID: ${this.engine.pid}`);
+    console.log(`[DEBUG] Engine stdin writable: ${this.engine.stdin.writable}`);
+    console.log(`[DEBUG] Sending command: ${command}`);
+
+    return new Promise((resolve, reject) => {
+      const pending: PendingCommand = {
+        id: commandId,
+        command,
+        resolve,
+        reject,
+        terminator: options?.terminator,
+        responses: []
+      };
+
+      this.pendingCommands.set(commandId, pending);
+
+      // タイムアウト処理
+      const timeoutId = setTimeout(() => {
+        this.pendingCommands.delete(commandId);
+        reject(new Error(`Command timeout: ${command}`));
+      }, timeout);
+
+      // Promise解決時にタイムアウトをクリア
+      const originalResolve = resolve;
+      pending.resolve = (responses) => {
+        clearTimeout(timeoutId);
+        originalResolve(responses);
+      };
+
+      try {
+        this.engine.stdin!.write(command + '\n');
+        console.log(`[DEBUG] Command sent successfully`);
+      } catch (error) {
+        this.pendingCommands.delete(commandId);
+        clearTimeout(timeoutId);
+        reject(error);
+      }
+    });
+  }
+
+  
+  /**
    * エンジンを終了
    */
-  quit(): void {
-    this.sendCommand('quit');
+  async quit(): Promise<string[]> {
+    try {
+      return await this.sendCommand('quit');
+    } catch (error) {
+      // quitコマンドは通常応答がないことが多い
+      return [];
+    }
   }
 
   /**
@@ -100,18 +224,7 @@ export default class ShogiEngineClient extends EventEmitter {
    * @returns 応答文字列の配列
    */
   async isReady(): Promise<string[]> {
-    return new Promise((resolve) => {
-      const responses: string[] = [];
-      const onResponse = (response: string) => {
-        responses.push(response);
-        if (response === 'readyok') {
-          this.off('response', onResponse);
-          resolve(responses);
-        }
-      };
-      this.on('response', onResponse);
-      this.sendCommand('isready');
-    });
+    return this.sendCommand('isready', { terminator: 'readyok' });
   }
 
   /**
@@ -119,17 +232,107 @@ export default class ShogiEngineClient extends EventEmitter {
    * @returns 応答文字列の配列
    */
   async usi(): Promise<string[]> {
-    return new Promise((resolve) => {
-      const responses: string[] = [];
-      const onResponse = (response: string) => {
-        responses.push(response);
-        if (response === 'usiok') {
-          this.off('response', onResponse);
-          resolve(responses);
+    return this.sendCommand('usi', { terminator: 'usiok' });
+  }
+
+  /**
+   * 新しい対局を開始
+   * @returns 応答文字列の配列
+   */
+  async usinewgame(): Promise<string[]> {
+    return this.sendCommand('usinewgame');
+  }
+
+  /**
+   * 局面を設定
+   * @param position 局面文字列（USI形式）
+   * @returns 応答文字列の配列
+   */
+  async position(position: string): Promise<string[]> {
+    return this.sendCommand(`position ${position}`);
+  }
+
+  /**
+   * 思考開始
+   * @param params goコマンドのパラメータ
+   * @returns Promise（bestmove待機用）
+   */
+  async go(params: string): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      let infoResponses: string[] = [];
+
+      const infoListener = (response: string) => {
+        if (response.startsWith('info')) {
+          infoResponses.push(response);
         }
       };
-      this.on('response', onResponse);
-      this.sendCommand('usi');
+
+      const bestmoveListener = (response: string) => {
+        this.off('engine_response', infoListener);
+        this.off('engine_response', bestmoveListener);
+        resolve([...infoResponses, response]);
+      };
+
+      this.on('engine_response', infoListener);
+      this.on('engine_response', bestmoveListener);
+
+      // goコマンドを送信（非同期で実行）
+      this.sendCommand(`go ${params}`).catch(error => {
+        this.off('engine_response', infoListener);
+        this.off('engine_response', bestmoveListener);
+        reject(error);
+      });
+
+      // タイムアウト設定（思考時間に応じて調整）
+      setTimeout(() => {
+        this.off('engine_response', infoListener);
+        this.off('engine_response', bestmoveListener);
+        reject(new Error('Go command timeout'));
+      }, 60000); // 60秒
     });
   }
+
+  /**
+   * 思考を停止
+   * @returns 応答文字列の配列
+   */
+  async stop(): Promise<string[]> {
+    return this.sendCommand('stop');
+  }
 }
+
+console.log("hello")
+
+const client = new ShogiEngineClient("../source/minishogi-by-gcc");
+
+// ストリーミング応答イベントをリッスン
+client.on('engine_response', (event: { type: string; data: string }) => {
+  console.log(`[ENGINE RESPONSE] ${event.type}: ${event.data}`);
+});
+
+// エラーイベントをリッスン
+client.on('error', (error: Error) => {
+  console.error(`[ENGINE ERROR] ${error.message}`);
+});
+
+// プロセス終了イベントをリッスン
+client.on('close', (code: number) => {
+  console.log(`[ENGINE CLOSED] Process exited with code ${code}`);
+});
+
+// 少し待ってからコマンドを送信
+setTimeout(async () => {
+  console.log("Sending commands with new API...");
+  try {
+    // 新しいAPIを使用してコマンド送信
+    const readyResponses = await client.isReady();
+    console.log("isready responses:", readyResponses);
+
+    console.log("Command sent successfully");
+  } catch (error) {
+    console.error("Failed to send command:", error);
+  }
+}, 1000);
+
+
+console.log("world");

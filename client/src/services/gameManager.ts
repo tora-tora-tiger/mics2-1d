@@ -61,17 +61,32 @@ export class GameManager extends EventEmitter {
       this.setupEngineListeners(gameId, engine);
 
       // USIプロトコルを開始
-      await engine.usi();
-      await engine.isReady();
+      console.log(`[${gameId}] Starting USI protocol...`);
+      const usiResponses = await engine.usi();
+      console.log(`[${gameId}] USI responses:`, usiResponses);
+
+      const readyResponses = await engine.isReady();
+      console.log(`[${gameId}] Ready responses:`, readyResponses);
 
       // 対局を開始
       game.state = 'playing';
       game.updatedAt = new Date();
 
-      // USIコマンドを送信
-      engine.sendCommand('usinewgame');
-      engine.sendCommand(`position ${game.position}`);
-      engine.sendCommand(`go btime ${game.timeLimit} wtime ${game.timeLimit} binc ${game.byoyomi} winc ${game.byoyomi}`);
+      // USIコマンドを送信（Promiseベースで順次実行）
+      console.log(`[${gameId}] Starting new game...`);
+      await engine.usinewgame();
+
+      console.log(`[${gameId}] Setting position: ${game.position}`);
+      await engine.position(game.position);
+
+      console.log(`[${gameId}] Starting engine thinking...`);
+      const goParams = `btime ${game.timeLimit} wtime ${game.timeLimit} binc ${game.byoyomi} winc ${game.byoyomi}`;
+
+      // goコマンドは非同期で実行（結果はイベントで処理）
+      engine.go(goParams).catch(error => {
+        console.error(`[${gameId}] Go command failed:`, error);
+        this.emit('error', { gameId, error: error.message });
+      });
 
       this.emit('game_started', game);
       return true;
@@ -89,7 +104,7 @@ export class GameManager extends EventEmitter {
    * @param gameId 対局ID
    * @returns 成功したかどうか
    */
-  stopGame(gameId: string): boolean {
+  async stopGame(gameId: string): Promise<boolean> {
     const game = this.games.get(gameId);
     const engine = this.engines.get(gameId);
 
@@ -97,34 +112,55 @@ export class GameManager extends EventEmitter {
       return false;
     }
 
-    // エンジンに停止コマンドを送信
-    engine.sendCommand('stop');
+    try {
+      // エンジンに停止コマンドを送信
+      console.log(`[${gameId}] Stopping engine...`);
+      await engine.stop();
 
-    // 状態を更新
-    game.state = 'ended';
-    game.updatedAt = new Date();
+      // 状態を更新
+      game.state = 'ended';
+      game.updatedAt = new Date();
 
-    this.emit('game_stopped', game);
-    return true;
+      this.emit('game_stopped', game);
+      return true;
+
+    } catch (error) {
+      console.error(`Failed to stop game ${gameId}:`, error);
+      return false;
+    }
   }
 
   /**
    * 対局を終了
    * @param gameId 対局ID
    */
-  endGame(gameId: string): void {
+  async endGame(gameId: string): Promise<void> {
     const game = this.games.get(gameId);
     const engine = this.engines.get(gameId);
 
-    if (engine) {
-      engine.quit();
-      this.engines.delete(gameId);
-    }
+    try {
+      if (engine) {
+        console.log(`[${gameId}] Quitting engine...`);
+        await engine.quit();
+        this.engines.delete(gameId);
+      }
 
-    if (game) {
-      game.state = 'ended';
-      game.updatedAt = new Date();
-      this.emit('game_ended', game);
+      if (game) {
+        game.state = 'ended';
+        game.updatedAt = new Date();
+        this.emit('game_ended', game);
+      }
+    } catch (error) {
+      console.error(`Failed to end game ${gameId}:`, error);
+      // エラーが発生してもクリーンアップは実行
+      if (engine) {
+        this.engines.delete(gameId);
+      }
+      if (game) {
+        game.state = 'ended';
+        game.updatedAt = new Date();
+        this.emit('game_ended', game);
+      }
     }
   }
 
@@ -185,9 +221,13 @@ export class GameManager extends EventEmitter {
   /**
    * すべての対局を終了
    */
-  terminateAllGames(): void {
-    for (const gameId of this.engines.keys()) {
-      this.endGame(gameId);
-    }
+  async terminateAllGames(): Promise<void> {
+    const endPromises = Array.from(this.engines.keys()).map(gameId =>
+      this.endGame(gameId).catch(error =>
+        console.error(`Failed to terminate game ${gameId}:`, error)
+      )
+    );
+
+    await Promise.all(endPromises);
   }
 }

@@ -94,9 +94,9 @@ export class GameController {
   /**
    * 対局を停止
    */
-  stopGame(c: Context): Response {
+  async stopGame(c: Context): Promise<Response> {
     const gameId = c.req.param('gameId');
-    const success = this.gameManager.stopGame(gameId);
+    const success = await this.gameManager.stopGame(gameId);
 
     if (!success) {
       const error: ApiError = {
@@ -117,9 +117,9 @@ export class GameController {
   /**
    * 対局を終了
    */
-  endGame(c: Context): Response {
+  async endGame(c: Context): Promise<Response> {
     const gameId = c.req.param('gameId');
-    this.gameManager.endGame(gameId);
+    await this.gameManager.endGame(gameId);
 
     const response: ApiResponse = {
       status: 'success',
