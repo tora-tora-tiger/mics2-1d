@@ -158,6 +158,7 @@ export default class ShogiEngineClient extends EventEmitter {
   async sendCommand(command: string, options?: {
     terminator?: string;
     timeout?: number;
+    expectResponse?: boolean;
   }): Promise<string[]> {
     if (!this.engine || !this.engine.stdin) {
       throw new Error('エンジンが起動していません');
@@ -169,8 +170,25 @@ export default class ShogiEngineClient extends EventEmitter {
     console.log(`[DEBUG] Engine process PID: ${this.engine.pid}`);
     console.log(`[DEBUG] Engine stdin writable: ${this.engine.stdin.writable}`);
     console.log(`[DEBUG] Sending command: ${command}`);
+    
 
     return new Promise((resolve, reject) => {
+      if (!this.engine || !this.engine.stdin) {
+        throw new Error('エンジンが起動していません');
+      }
+      // 応答を期待しない場合は即座に解決
+      if (options?.expectResponse === false) {
+        try {
+          this.engine.stdin.write(command + '\n');
+          console.log(`[DEBUG] Command sent successfully (no response expected)`);
+          resolve([]);
+        } catch (error) {
+          console.error(`[DEBUG] Error sending command: ${error}`);
+          reject(error);
+        }
+        return;
+      }
+
       const pending: PendingCommand = {
         id: commandId,
         command,
@@ -207,16 +225,12 @@ export default class ShogiEngineClient extends EventEmitter {
   }
 
   
+  
   /**
    * エンジンを終了
    */
   async quit(): Promise<string[]> {
-    try {
-      return await this.sendCommand('quit');
-    } catch (error) {
-      // quitコマンドは通常応答がないことが多い
-      return [];
-    }
+    return this.sendCommand('quit', { expectResponse: false });
   }
 
   /**
@@ -240,7 +254,7 @@ export default class ShogiEngineClient extends EventEmitter {
    * @returns 応答文字列の配列
    */
   async usinewgame(): Promise<string[]> {
-    return this.sendCommand('usinewgame');
+    return this.sendCommand('usinewgame', { expectResponse: false });
   }
 
   /**
@@ -249,7 +263,8 @@ export default class ShogiEngineClient extends EventEmitter {
    * @returns 応答文字列の配列
    */
   async position(position: string): Promise<string[]> {
-    return this.sendCommand(`position ${position}`);
+    // positionコマンドはエンジンからの応答がないため、expectResponse: falseを指定
+    return this.sendCommand(`position ${position}`, { expectResponse: false });
   }
 
   /**
@@ -296,8 +311,8 @@ export default class ShogiEngineClient extends EventEmitter {
    * 思考を停止
    * @returns 応答文字列の配列
    */
-  stop(): void {
-    // return this.sendCommand('stop');
+  async stop(): Promise<string[]> {
+    return this.sendCommand('stop');
   }
 }
 
