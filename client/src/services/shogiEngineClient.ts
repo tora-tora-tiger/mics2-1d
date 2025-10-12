@@ -167,8 +167,8 @@ export default class ShogiEngineClient extends EventEmitter {
     const commandId = `cmd_${++this.commandSequence}`;
     const timeout = options?.timeout || 20000;
 
-    console.log(`[DEBUG] Engine process PID: ${this.engine.pid}`);
-    console.log(`[DEBUG] Engine stdin writable: ${this.engine.stdin.writable}`);
+    // console.log(`[DEBUG] Engine process PID: ${this.engine.pid}`);
+    // console.log(`[DEBUG] Engine stdin writable: ${this.engine.stdin.writable}`);
     console.log(`[DEBUG] Sending command: ${command}`);
     
 
@@ -272,35 +272,27 @@ export default class ShogiEngineClient extends EventEmitter {
    * @param params goコマンドのパラメータ
    * @returns Promise（bestmove待機用）
    */
-  async go(params: string): Promise<string[]> {
+  async go(params: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      let infoResponses: string[] = [];
 
-      const infoListener = (event: { type: string; data: string }) => {
-        if (event.data.startsWith('info')) {
-          infoResponses.push(event.data);
+      // bestmoveが返された時
+      const bestmoveListener = (event: { type: string; data: string }) => {
+        if(event.data.startsWith('bestmove')) {
+          this.off('engine_response', bestmoveListener);
+          resolve(event.data);
         }
       };
 
-      const bestmoveListener = (event: { type: string; data: string }) => {
-        this.off('engine_response', infoListener);
-        this.off('engine_response', bestmoveListener);
-        resolve([...infoResponses, event.data]);
-      };
-
-      this.on('engine_response', infoListener);
       this.on('engine_response', bestmoveListener);
 
       // goコマンドを送信（非同期で実行）
       this.sendCommand(`go ${params}`).catch(error => {
-        this.off('engine_response', infoListener);
         this.off('engine_response', bestmoveListener);
         reject(error);
       });
 
       // タイムアウト設定（思考時間に応じて調整）
       setTimeout(() => {
-        this.off('engine_response', infoListener);
         this.off('engine_response', bestmoveListener);
         reject(new Error('Go command timeout'));
       }, 60000); // 60秒
