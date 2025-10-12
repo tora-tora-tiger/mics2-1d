@@ -270,14 +270,14 @@ export default class ShogiEngineClient extends EventEmitter {
    * @param params goコマンドのパラメータ
    * @returns Promise（bestmove待機用）
    */
-  async go(params: string): Promise<string[]> {
+  async go(params: string): Promise<string> {
     return new Promise((resolve, reject) => {
 
       // bestmoveが返された時
       const bestmoveListener = (event: { type: string; data: string }) => {
         if(event.data.startsWith('bestmove')) {
           this.off('engine_response', bestmoveListener);
-          resolve([event.data]);
+          resolve(event.data);
         }
       };
 
