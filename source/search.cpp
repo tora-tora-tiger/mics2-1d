@@ -104,11 +104,17 @@ void Search::search(Position &pos) {
       Value value = (-1) * Eval::evaluate(pos); // 評価関数を呼び出す
       pos.undo_move(move);                      // 局面を1手戻す
 
+      // rootMovesのスコアを更新
+      rootMoves[i].score = value;
+
       if (value > maxValue) {
         maxValue = value;
         bestMove = move;
       }
     }
+
+    // 評価値順にrootMovesをソート
+    std::stable_sort(rootMoves.begin(), rootMoves.end());
 
     // タイマースレッド終了
     Stop = true;
