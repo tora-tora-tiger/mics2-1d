@@ -5,6 +5,7 @@ import {
   InitialPositionSFEN,
   Position,
   Record,
+  SpecialMoveType,
 } from "../tsshogi/src";
 
 import { exportKIF } from "../tsshogi/src/kakinoki9";
@@ -33,6 +34,10 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
 
     // `bestmove <move> ponder <ponder>`の形式で返される
     const bestMoveUSI = goResponses.split(' ')[1];
+    if(bestMoveUSI.includes("resign")) {
+      record.append(SpecialMoveType.RESIGN);
+      break;
+    }
     const move = record.position.createMoveByUSI(bestMoveUSI);
     if (!move) throw new Error(`Invalid usi: ${bestMoveUSI}`);
 
@@ -49,12 +54,12 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
 };
 
 // debug
-// autoPlay(100).then(record => {
-//   const kif = exportKIF(record);
-//   const dir = './data/record/';
+autoPlay(100).then(record => {
+  const kif = exportKIF(record);
+  const dir = './data/record/';
 
-//   fs.mkdirSync(dir, { recursive: true });
-//   const filePath = path.join(dir, `record-${Date.now()}.kif`);
-//   fs.writeFileSync(filePath, kif);
-//   console.log(`Record saved to ${filePath}`);
-// })
+  fs.mkdirSync(dir, { recursive: true });
+  const filePath = path.join(dir, `record-${Date.now()}.kif`);
+  fs.writeFileSync(filePath, kif);
+  console.log(`Record saved to ${filePath}`);
+})
