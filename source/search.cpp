@@ -193,12 +193,12 @@ Value Search::alphabeta_search(Position &pos, Value alpha, Value beta, int depth
   for (ExtMove move : legalMoves) {
     pos.do_move(move.move, si); // 局面を1手進める
     Value value = (-1) * alphabeta_search(pos, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
+    pos.undo_move(move.move);
     // [TODO] 同値のとき切っていいのかを検討
     if(value <= alpha || beta <= value) {
-      pos.undo_move(move.move);
+      std::cout << "cut by alpha-beta" << std::endl;
       return value; // カット
     }
-    pos.undo_move(move.move);
 
     chmax(maxValue, value);
     chmax(alpha, value);
