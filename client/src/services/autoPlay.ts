@@ -39,8 +39,17 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
   record.metadata.setStandardMetadata(RecordMetadataKey.WHITE_NAME, config.whiteEngineName);
   
   // エンジンの初期化
-  const blackClient = new ShogiEngineClient(`../engines/${config.blackEngineName}`);
-  const whiteClient = new ShogiEngineClient(`../engines/${config.whiteEngineName}`);
+  const blackClient = new ShogiEngineClient(`../source/minishogi-by-gcc`);
+  const whiteClient = new ShogiEngineClient(`../source/minishogi-by-gcc`);
+  // const blackClient = new ShogiEngineClient(`../engines/${config.blackEngineName}`);
+  // const whiteClient = new ShogiEngineClient(`../engines/${config.whiteEngineName}`);
+  blackClient.on('engine_response', (event) => {
+    console.log(`\x1b[36m[BLACK]\x1b[0m ${event.data}`);
+  });
+  whiteClient.on('engine_response', (event) => {
+    console.log(`\x1b[35m[WHITE]\x1b[0m ${event.data}`);
+  });
+
   await Promise.all([
     initGame(blackClient),
     initGame(whiteClient)
