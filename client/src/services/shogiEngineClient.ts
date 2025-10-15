@@ -284,7 +284,7 @@ export default class ShogiEngineClient extends EventEmitter {
       this.on('engine_response', bestmoveListener);
 
       // goコマンドを送信（非同期で実行）
-      this.sendCommand(`go ${params}`).catch(error => {
+      this.sendCommand(`go ${params}`, { expectResponse: false }).catch(error => {
         this.off('engine_response', bestmoveListener);
         reject(error);
       });
