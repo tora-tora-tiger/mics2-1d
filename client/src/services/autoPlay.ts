@@ -23,8 +23,8 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
   
   // エンジンの初期化
   const record = new Record(initialPosition);
-  const blackClient = new ShogiEngineClient("../source/minishogi-by-gcc");
-  const whiteClient = new ShogiEngineClient("../source/minishogi-by-gcc");
+  const blackClient = new ShogiEngineClient("../engines/random-player-aarch64");
+  const whiteClient = new ShogiEngineClient("../engines/alphabeta-aarch64");
   await Promise.all([
     initGame(blackClient),
     initGame(whiteClient)
