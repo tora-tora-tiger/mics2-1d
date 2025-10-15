@@ -10,19 +10,32 @@ import {
 
 import { exportKIF } from "../tsshogi/src/kakinoki9";
 
-const autoPlay = async (limitStep: number): Promise<Record> => {
-  const client = new ShogiEngineClient("../source/minishogi-by-gcc");
-
-  const initialPosition = new Position();
-  initialPosition.resetBySFEN(InitialPositionSFEN.STANDARD);
-  
-  const record = new Record(initialPosition);
-  
+const initGame = async (client: ShogiEngineClient) => {
   await client.usi();
   await client.isReady();
   await client.usinewgame();
+}
+
+const autoPlay = async (limitStep: number): Promise<Record> => {
+  // 棋譜の初期化
+  const initialPosition = new Position();
+  initialPosition.resetBySFEN(InitialPositionSFEN.STANDARD);
   
+  // エンジンの初期化
+  const record = new Record(initialPosition);
+  const blackClient = new ShogiEngineClient("../source/minishogi-by-gcc");
+  const whiteClient = new ShogiEngineClient("../source/minishogi-by-gcc");
+  await Promise.all([
+    initGame(blackClient),
+    initGame(whiteClient)
+  ]);
+  console.log("Engines initialized");
+  
+  // 交互に指す
+  const clients = [blackClient, whiteClient];
   for(let i = 0 ; i < limitStep ; i++) {
+    const client = clients[i % 2];
+
     // 現在の局面をエンジンに送信
     const movesUSI = record.getUSI();
     // position <pos|sfen> ~~ コマンドで、はじめのposition部分を消して送信
@@ -51,7 +64,10 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
     record.current.setElapsedMs(thinkTime);
   }
 
-  await client.quit();
+  await Promise.all([
+    blackClient.quit(),
+    whiteClient.quit()
+  ]);
 
   return record;
 };
