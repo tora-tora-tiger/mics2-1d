@@ -30,7 +30,9 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
     await client.position(positionCommand);
 
     // 最善手を取得
+    const startTime = performance.now();
     const goResponses = await client.go("");
+    const thinkTime = performance.now() - startTime;
 
     // `bestmove <move> ponder <ponder>`の形式で返される
     const bestMoveUSI = goResponses.split(' ')[1];
@@ -46,6 +48,7 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
     if(!isVaildAppend) {
       throw new Error(`Failed to append move: ${move.toString()}`);
     }
+    record.current.setElapsedMs(thinkTime);
   }
 
   await client.quit();
@@ -54,7 +57,9 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
 };
 
 // debug
+console.time('autoPlay');
 autoPlay(100).then(record => {
+  console.timeEnd('autoPlay');
   const kif = exportKIF(record);
   const dir = './data/record/';
 
