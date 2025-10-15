@@ -167,7 +167,7 @@ export default class ShogiEngineClient extends EventEmitter {
 
     // console.log(`[DEBUG] Engine process PID: ${this.engine.pid}`);
     // console.log(`[DEBUG] Engine stdin writable: ${this.engine.stdin.writable}`);
-    console.log(`[DEBUG] Sending command: ${command}`);
+    // console.log(`[DEBUG] Sending command: ${command}`);
     
 
     return new Promise((resolve, reject) => {
@@ -178,7 +178,7 @@ export default class ShogiEngineClient extends EventEmitter {
       if (options?.expectResponse === false) {
         try {
           this.engine.stdin.write(command + '\n');
-          console.log(`[DEBUG] Command sent successfully (no response expected)`);
+          // console.log(`[DEBUG] Command sent successfully (no response expected)`);
           resolve([]);
         } catch (error) {
           console.error(`[DEBUG] Error sending command: ${error}`);
@@ -213,7 +213,7 @@ export default class ShogiEngineClient extends EventEmitter {
 
       try {
         this.engine.stdin!.write(command + '\n');
-        console.log(`[DEBUG] Command sent successfully`);
+        // console.log(`[DEBUG] Command sent successfully`);
       } catch (error) {
         this.pendingCommands.delete(commandId);
         clearTimeout(timeoutId);
