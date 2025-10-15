@@ -96,10 +96,8 @@ export default class ShogiEngineClient extends EventEmitter {
       // コマンドとの相関をチェック
       this.processCommandResponse(trimmedLine);
 
-      // ストリーミング応答は別途処理
-      if (trimmedLine.startsWith('info') || trimmedLine.startsWith('bestmove')) {
-        this.emit('engine_response', { type: 'stream', data: trimmedLine });
-      }
+      // ストリーミングもつけとく
+      this.emit('engine_response', { type: 'stream', data: trimmedLine });
     }
   }
 
@@ -158,6 +156,7 @@ export default class ShogiEngineClient extends EventEmitter {
   async sendCommand(command: string, options?: {
     terminator?: string;
     timeout?: number;
+    expectResponse?: boolean;
   }): Promise<string[]> {
     if (!this.engine || !this.engine.stdin) {
       throw new Error('エンジンが起動していません');
@@ -166,11 +165,28 @@ export default class ShogiEngineClient extends EventEmitter {
     const commandId = `cmd_${++this.commandSequence}`;
     const timeout = options?.timeout || 20000;
 
-    console.log(`[DEBUG] Engine process PID: ${this.engine.pid}`);
-    console.log(`[DEBUG] Engine stdin writable: ${this.engine.stdin.writable}`);
+    // console.log(`[DEBUG] Engine process PID: ${this.engine.pid}`);
+    // console.log(`[DEBUG] Engine stdin writable: ${this.engine.stdin.writable}`);
     console.log(`[DEBUG] Sending command: ${command}`);
+    
 
     return new Promise((resolve, reject) => {
+      if (!this.engine || !this.engine.stdin) {
+        throw new Error('エンジンが起動していません');
+      }
+      // 応答を期待しない場合は即座に解決
+      if (options?.expectResponse === false) {
+        try {
+          this.engine.stdin.write(command + '\n');
+          console.log(`[DEBUG] Command sent successfully (no response expected)`);
+          resolve([]);
+        } catch (error) {
+          console.error(`[DEBUG] Error sending command: ${error}`);
+          reject(error);
+        }
+        return;
+      }
+
       const pending: PendingCommand = {
         id: commandId,
         command,
@@ -207,16 +223,12 @@ export default class ShogiEngineClient extends EventEmitter {
   }
 
   
+  
   /**
    * エンジンを終了
    */
   async quit(): Promise<string[]> {
-    try {
-      return await this.sendCommand('quit');
-    } catch (error) {
-      // quitコマンドは通常応答がないことが多い
-      return [];
-    }
+    return this.sendCommand('quit', { expectResponse: false });
   }
 
   /**
@@ -240,7 +252,7 @@ export default class ShogiEngineClient extends EventEmitter {
    * @returns 応答文字列の配列
    */
   async usinewgame(): Promise<string[]> {
-    return this.sendCommand('usinewgame');
+    return this.sendCommand('usinewgame', { expectResponse: false });
   }
 
   /**
@@ -249,7 +261,8 @@ export default class ShogiEngineClient extends EventEmitter {
    * @returns 応答文字列の配列
    */
   async position(position: string): Promise<string[]> {
-    return this.sendCommand(`position ${position}`);
+    // positionコマンドはエンジンからの応答がないため、expectResponse: falseを指定
+    return this.sendCommand(`position ${position}`, { expectResponse: false });
   }
 
   /**
@@ -257,35 +270,27 @@ export default class ShogiEngineClient extends EventEmitter {
    * @param params goコマンドのパラメータ
    * @returns Promise（bestmove待機用）
    */
-  async go(params: string): Promise<string[]> {
+  async go(params: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      let infoResponses: string[] = [];
 
-      const infoListener = (response: string) => {
-        if (response.startsWith('info')) {
-          infoResponses.push(response);
+      // bestmoveが返された時
+      const bestmoveListener = (event: { type: string; data: string }) => {
+        if(event.data.startsWith('bestmove')) {
+          this.off('engine_response', bestmoveListener);
+          resolve(event.data);
         }
       };
 
-      const bestmoveListener = (response: string) => {
-        this.off('engine_response', infoListener);
-        this.off('engine_response', bestmoveListener);
-        resolve([...infoResponses, response]);
-      };
-
-      this.on('engine_response', infoListener);
       this.on('engine_response', bestmoveListener);
 
       // goコマンドを送信（非同期で実行）
       this.sendCommand(`go ${params}`).catch(error => {
-        this.off('engine_response', infoListener);
         this.off('engine_response', bestmoveListener);
         reject(error);
       });
 
       // タイムアウト設定（思考時間に応じて調整）
       setTimeout(() => {
-        this.off('engine_response', infoListener);
         this.off('engine_response', bestmoveListener);
         reject(new Error('Go command timeout'));
       }, 60000); // 60秒
@@ -296,43 +301,8 @@ export default class ShogiEngineClient extends EventEmitter {
    * 思考を停止
    * @returns 応答文字列の配列
    */
-  stop(): void {
-    // return this.sendCommand('stop');
+  async stop(): Promise<string[]> {
+    return this.sendCommand('stop');
   }
 }
 
-console.log("hello")
-
-const client = new ShogiEngineClient("../source/minishogi-by-gcc");
-
-// ストリーミング応答イベントをリッスン
-client.on('engine_response', (event: { type: string; data: string }) => {
-  console.log(`[ENGINE RESPONSE] ${event.type}: ${event.data}`);
-});
-
-// エラーイベントをリッスン
-client.on('error', (error: Error) => {
-  console.error(`[ENGINE ERROR] ${error.message}`);
-});
-
-// プロセス終了イベントをリッスン
-client.on('close', (code: number) => {
-  console.log(`[ENGINE CLOSED] Process exited with code ${code}`);
-});
-
-// 少し待ってからコマンドを送信
-setTimeout(async () => {
-  console.log("Sending commands with new API...");
-  try {
-    // 新しいAPIを使用してコマンド送信
-    const readyResponses = await client.isReady();
-    console.log("isready responses:", readyResponses);
-
-    console.log("Command sent successfully");
-  } catch (error) {
-    console.error("Failed to send command:", error);
-  }
-}, 1000);
-
-
-console.log("world");

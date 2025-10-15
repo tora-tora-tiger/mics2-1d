@@ -106,4 +106,22 @@ ENABLE_RANGE_OPERATORS_ON(Piece, NO_PIECE, PIECE_NB)
 
 // →　foreachBBマクロは、bitboard.hにもある。
 
+
+// --- その他
+// chmin, chmax
+template <typename T> inline bool chmin(T &a, const T b) {
+  if (b < a) {
+    a = b;
+    return true;
+  }
+  return false;
+}
+template <typename T> inline bool chmax(T &a, const T b) {
+  if (a < b) {
+    a = b;
+    return true;
+  }
+  return false;
+}
+
 #endif

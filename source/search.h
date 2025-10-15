@@ -94,6 +94,9 @@ void start_thinking(const Position &rootPos, StateListPtr &states,
 
 // 探索本体
 void search(Position &rootPos);
+Value negamax_search(::Position &pos, int depth, int ply_from_root);
+Value alphabeta_search(Position &pos, Value alpha, Value beta, int depth,
+                        int ply_from_root);
 } // namespace Search
 
 #endif // !SEARCH_H_
