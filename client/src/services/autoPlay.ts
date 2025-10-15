@@ -5,6 +5,7 @@ import {
   InitialPositionSFEN,
   Position,
   Record,
+  RecordMetadataKey,
   SpecialMoveType,
 } from "../tsshogi/src";
 
@@ -16,15 +17,30 @@ const initGame = async (client: ShogiEngineClient) => {
   await client.usinewgame();
 }
 
-const autoPlay = async (limitStep: number): Promise<Record> => {
+interface AutoPlayConfig {
+  limitStep: number; // 最大手数
+  blackEngineName: string; // 先手エンジンのパス
+  whiteEngineName: string; // 後手エンジンのパス
+}
+
+/**
+ * 自動対局を実行
+ * @param AutoPlayConfig config 自動対局の設定
+ * @returns {Promise<Record>} 棋譜オブジェクト
+ */
+const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
   // 棋譜の初期化
   const initialPosition = new Position();
   initialPosition.resetBySFEN(InitialPositionSFEN.STANDARD);
+  const record = new Record(initialPosition);
+
+  // 棋譜にプレイヤー情報を設定
+  record.metadata.setStandardMetadata(RecordMetadataKey.BLACK_NAME, config.blackEngineName);
+  record.metadata.setStandardMetadata(RecordMetadataKey.WHITE_NAME, config.whiteEngineName);
   
   // エンジンの初期化
-  const record = new Record(initialPosition);
-  const blackClient = new ShogiEngineClient("../engines/random-player-aarch64");
-  const whiteClient = new ShogiEngineClient("../engines/alphabeta-aarch64");
+  const blackClient = new ShogiEngineClient(`../engines/${config.blackEngineName}`);
+  const whiteClient = new ShogiEngineClient(`../engines/${config.whiteEngineName}`);
   await Promise.all([
     initGame(blackClient),
     initGame(whiteClient)
@@ -33,7 +49,7 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
   
   // 交互に指す
   const clients = [blackClient, whiteClient];
-  for(let i = 0 ; i < limitStep ; i++) {
+  for(let i = 0 ; i < config.limitStep ; i++) {
     const client = clients[i % 2];
 
     // 現在の局面をエンジンに送信
@@ -74,7 +90,12 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
 
 // debug
 console.time('autoPlay');
-autoPlay(100).then(record => {
+autoPlay({
+  limitStep: 100,
+  blackEngineName: "random-player-aarch64",
+  whiteEngineName: "random-player-aarch64",
+  // whiteEngineName: "alphabeta-aarch64",
+}).then(record => {
   console.timeEnd('autoPlay');
   const kif = exportKIF(record);
   const dir = './data/record/';
