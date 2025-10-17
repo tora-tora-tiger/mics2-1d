@@ -5,24 +5,62 @@ import {
   InitialPositionSFEN,
   Position,
   Record,
+  RecordMetadataKey,
   SpecialMoveType,
 } from "../tsshogi/src";
 
 import { exportKIF } from "../tsshogi/src/kakinoki9";
 
-const autoPlay = async (limitStep: number): Promise<Record> => {
-  const client = new ShogiEngineClient("../source/minishogi-by-gcc");
-
-  const initialPosition = new Position();
-  initialPosition.resetBySFEN(InitialPositionSFEN.STANDARD);
-  
-  const record = new Record(initialPosition);
-  
+const initGame = async (client: ShogiEngineClient) => {
   await client.usi();
   await client.isReady();
   await client.usinewgame();
+}
+
+interface AutoPlayConfig {
+  limitStep: number; // 最大手数
+  blackEngineName: string; // 先手エンジンのパス
+  whiteEngineName: string; // 後手エンジンのパス
+}
+
+/**
+ * 自動対局を実行
+ * @param AutoPlayConfig config 自動対局の設定
+ * @returns {Promise<Record>} 棋譜オブジェクト
+ */
+const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
+  // 棋譜の初期化
+  const initialPosition = new Position();
+  initialPosition.resetBySFEN(InitialPositionSFEN.STANDARD);
+  const record = new Record(initialPosition);
+
+  // 棋譜にプレイヤー情報を設定
+  record.metadata.setStandardMetadata(RecordMetadataKey.BLACK_NAME, config.blackEngineName);
+  record.metadata.setStandardMetadata(RecordMetadataKey.WHITE_NAME, config.whiteEngineName);
   
-  for(let i = 0 ; i < limitStep ; i++) {
+  // エンジンの初期化
+  const blackClient = new ShogiEngineClient(`../source/minishogi-by-gcc`);
+  const whiteClient = new ShogiEngineClient(`../source/minishogi-by-gcc`);
+  // const blackClient = new ShogiEngineClient(`../engines/${config.blackEngineName}`);
+  // const whiteClient = new ShogiEngineClient(`../engines/${config.whiteEngineName}`);
+  blackClient.on('engine_response', (event) => {
+    console.log(`\x1b[36m[BLACK]\x1b[0m ${event.data}`);
+  });
+  whiteClient.on('engine_response', (event) => {
+    console.log(`\x1b[35m[WHITE]\x1b[0m ${event.data}`);
+  });
+
+  await Promise.all([
+    initGame(blackClient),
+    initGame(whiteClient)
+  ]);
+  console.log("Engines initialized");
+  
+  // 交互に指す
+  const clients = [blackClient, whiteClient];
+  for(let i = 0 ; i < config.limitStep ; i++) {
+    const client = clients[i % 2];
+
     // 現在の局面をエンジンに送信
     const movesUSI = record.getUSI();
     // position <pos|sfen> ~~ コマンドで、はじめのposition部分を消して送信
@@ -51,14 +89,22 @@ const autoPlay = async (limitStep: number): Promise<Record> => {
     record.current.setElapsedMs(thinkTime);
   }
 
-  await client.quit();
+  await Promise.all([
+    blackClient.quit(),
+    whiteClient.quit()
+  ]);
 
   return record;
 };
 
 // debug
 console.time('autoPlay');
-autoPlay(100).then(record => {
+autoPlay({
+  limitStep: 100,
+  blackEngineName: "random-player-aarch64",
+  whiteEngineName: "random-player-aarch64",
+  // whiteEngineName: "alphabeta-aarch64",
+}).then(record => {
   console.timeEnd('autoPlay');
   const kif = exportKIF(record);
   const dir = './data/record/';

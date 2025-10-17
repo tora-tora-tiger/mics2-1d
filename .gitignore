@@ -40,3 +40,5 @@ bld/
 *.vcxproj.filters
 
 .pnpm-store
+
+engines/
