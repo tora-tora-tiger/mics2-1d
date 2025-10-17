@@ -86,31 +86,65 @@ void Search::search(Position &pos) {
     Color us = pos.side_to_move();
     std::thread *timerThread = nullptr;
 
-    // 今回は秒読み以外の設定は考慮しない
-    s64 endTime = Limits.byoyomi[us] - 150;
+    // 時間制御のための終了時刻を計算
+    s64 endTime = 0;
+    if (Limits.use_time_management()) {
+      // 秒読みから終了時刻を計算（150ms余裕を持たせる）
+      endTime = Limits.byoyomi[us] - 150;
+    }
 
-    timerThread = new std::thread([&] {
-      while (Time.elapsed() < endTime && !Stop)
-        std::this_thread::sleep_for(std::chrono::milliseconds(10000));
-      Stop = true;
-    });
+    // タイマースレッドの起動（時間制御が必要な場合のみ）
+    if (Limits.use_time_management()) {
+      timerThread = new std::thread([&] {
+        while (Time.elapsed() < endTime && !Stop)
+          std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+        Stop = true;
+      });
+    }
 
-    /* 探索開始 */
+    /* 探索開始 - 反復深化探索 */
     Value maxValue = -VALUE_INFINITE; // 初期値はマイナス∞
     StateInfo si;
-    int rootDepth = 5; // 探索深さ
-    for (int i = 0; i < rootMoves.size(); ++i) {
-      Move move = rootMoves[i].pv[0];           // 合法手のi番目. スライド4枚目参照
-      pos.do_move(move, si);                    // 局面を1手進める
-      Value value = (-1) * negamax_search(pos, rootDepth-1, 0); // 評価関数を呼び出す
-      pos.undo_move(move);                      // 局面を1手戻す
+    // debug
+    int maxDepth = 50;
+    // int maxDepth = Limits.depth ? Limits.depth : 20; // goコマンドで指定された深さ、なければ20
 
-      // rootMovesのスコアを更新
-      rootMoves[i].score = value;
+    // 反復深化探索
+    for (int depth = 1; depth <= maxDepth && !Stop; ++depth) {
+      // ノード数制限のチェック
+      if (Limits.nodes && Nodes >= (uint64_t)Limits.nodes) {
+        Stop = true;
+        break;
+      }
+      Value currentMaxValue = -VALUE_INFINITE;
+      Move currentBestMove = MOVE_NONE;
 
-      if (value > maxValue) {
-        maxValue = value;
-        bestMove = move;
+      // 各合法手について探索
+      for (size_t i = 0; i < rootMoves.size(); ++i) {
+        Move move = rootMoves[i].pv[0];           // 合法手のi番目
+        pos.do_move(move, si);                    // 局面を1手進める
+        Value value = (-1) * negamax_search(pos, depth-1, 0); // 指定深さで探索
+        pos.undo_move(move);                      // 局面を1手戻す
+
+        // rootMovesのスコアを更新
+        rootMoves[i].score = value;
+        rootMoves[i].selDepth = depth; // 選択深さを設定
+
+        if(chmax(currentMaxValue, value)) {
+          currentBestMove = move;
+        }
+
+        // debug
+        if(depth == maxDepth) {
+          std::cout << "currentMax : " << rootMoves[i].pv[0] << " : " << currentMaxValue << std::endl;
+        }
+      }
+      
+      // この深さの探索結果でinfo出力
+      if (!Stop) {
+        std::cout << USI::pv(pos, depth) << std::endl;
+        maxValue = currentMaxValue;
+        bestMove = currentBestMove;
       }
     }
     /* 探索終了 */
@@ -178,10 +212,9 @@ Value Search::alphabeta_search(Position &pos, Value alpha, Value beta, int depth
     return Eval::evaluate(pos);
 
   // 探索深さに達したら評価関数を呼び出して終了
-  if (depth == 0)
+  if (depth == 0) {
     return Eval::evaluate(pos);
-
-  Value maxValue = -VALUE_INFINITE; // 初期値はマイナス∞
+  }
 
   StateInfo si;
   const auto legalMoves = MoveList<LEGAL_ALL>(pos);
@@ -196,13 +229,11 @@ Value Search::alphabeta_search(Position &pos, Value alpha, Value beta, int depth
     pos.undo_move(move.move);
     // [TODO] 同値のとき切っていいのかを検討
     if(value <= alpha || beta <= value) {
-      std::cout << "cut by alpha-beta" << std::endl;
       return value; // カット
     }
 
-    chmax(maxValue, value);
     chmax(alpha, value);
   }
 
-  return maxValue;
+  return alpha;
 }
