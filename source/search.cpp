@@ -104,6 +104,9 @@ void Search::search(Position &pos) {
 
     /* 探索開始 - 反復深化探索 */
     Value maxValue = -VALUE_INFINITE; // 初期値はマイナス∞
+    Value alpha = -VALUE_INFINITE;
+    Value beta = VALUE_INFINITE;
+    
     StateInfo si;
     // debug
     int maxDepth = 50;
@@ -123,8 +126,13 @@ void Search::search(Position &pos) {
       for (size_t i = 0; i < rootMoves.size(); ++i) {
         Move move = rootMoves[i].pv[0];           // 合法手のi番目
         pos.do_move(move, si);                    // 局面を1手進める
-        Value value = (-1) * negamax_search(pos, depth-1, 0); // 指定深さで探索
-        pos.undo_move(move);                      // 局面を1手戻す
+        std::vector<Move> pv;
+        Value value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 0); // 指定深さで探索
+        // rootMoves[i].pvを更新
+        rootMoves[i].pv.assign(1, move);
+        rootMoves[i].pv.insert(rootMoves[i].pv.end(), pv.begin(), pv.end());
+        pos.undo_move(move);               
+               // 局面を1手戻す
 
         // rootMovesのスコアを更新
         rootMoves[i].score = value;
@@ -138,11 +146,12 @@ void Search::search(Position &pos) {
         if(depth == maxDepth) {
           std::cout << "currentMax : " << rootMoves[i].pv[0] << " : " << currentMaxValue << std::endl;
         }
+        std::cout << USI::pv(pos, depth) << std::endl;
       }
       
       // この深さの探索結果でinfo出力
       if (!Stop) {
-        std::cout << USI::pv(pos, depth) << std::endl;
+        // std::cout << USI::pv(pos, depth) << std::endl;
         maxValue = currentMaxValue;
         bestMove = currentBestMove;
       }
@@ -166,74 +175,116 @@ END:;
 }
 
 // ネガマックス法(nega-max method)
-Value Search::negamax_search(Position &pos, int depth, int ply_from_root) {
+Value Search::negamax_search(Position &pos, std::vector<Move> &pv, int depth, int ply_from_root) {
   // 探索ノード数をインクリメント
   ++Nodes;
 
   // 探索打ち切り
-  if (Stop)
+  if (Stop) {
+    pv.clear();
     return Eval::evaluate(pos);
+  }
 
   // 探索深さに達したら評価関数を呼び出して終了
-  if (depth == 0)
+  if (depth == 0) {
+    pv.clear();
     return Eval::evaluate(pos);
+  }
 
   Value maxValue = -VALUE_INFINITE; // 初期値はマイナス∞
   // 初期探索範囲は[-∞, +∞]
   Value alpha = -VALUE_INFINITE;
   Value beta = VALUE_INFINITE;
+  std::vector<Move> bestPv;
 
   StateInfo si;
   const auto legalMoves = MoveList<LEGAL_ALL>(pos);
   if(legalMoves.size() == 0) {
     // 合法手が存在しない -> 詰み
+    pv.clear();
     return mated_in(ply_from_root);
   }
 
   for (ExtMove move : legalMoves) {
+    std::vector<Move> childPv;
     pos.do_move(move.move, si); // 局面を1手進める
-    Value value = (-1) * alphabeta_search(pos, alpha, beta, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
+    Value value = (-1) * alphabeta_search(pos, childPv, alpha, beta, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
     pos.undo_move(move.move);
 
-    if (value > maxValue)
+    if (value > maxValue) {
       maxValue = value;
+      // 最適なPVを構築
+      bestPv.clear();
+      bestPv.emplace_back(move.move);
+      bestPv.insert(bestPv.end(), childPv.begin(), childPv.end());
+    }
   }
 
+  pv = bestPv;
   return maxValue;
 }
 
-// アルファ・ベータ法(apha-beta method)
-Value Search::alphabeta_search(Position &pos, Value alpha, Value beta, int depth, int ply_from_root) {
+// アルファ・ベータ法(alpha-beta method)
+Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha, Value beta, int depth, int ply_from_root) {
   // 探索ノード数をインクリメント
   ++Nodes;
 
   // 探索打ち切り
-  if (Stop)
-    return Eval::evaluate(pos);
-
-  // 探索深さに達したら評価関数を呼び出して終了
-  if (depth == 0) {
+  if (Stop) {
+    pv.clear();
     return Eval::evaluate(pos);
   }
 
+  // 探索深さに達したら評価関数を呼び出して終了
+  if (depth == 0) {
+    pv.clear();
+    return Eval::evaluate(pos);
+  }
+
+  Value maxValue = -VALUE_INFINITE;
+  std::vector<Move> bestPv;
   StateInfo si;
   const auto legalMoves = MoveList<LEGAL_ALL>(pos);
-  if(legalMoves.size() == 0) {
+
+  if(legalMoves.size() == 0 || pos.is_repetition(4)) {
     // 合法手が存在しない -> 詰み
+    // 千日手のときは，とりあえず負けにしておく
+    pv.clear();
     return mated_in(ply_from_root);
   }
 
   for (ExtMove move : legalMoves) {
+    std::vector<Move> childPv;
+
     pos.do_move(move.move, si); // 局面を1手進める
-    Value value = (-1) * alphabeta_search(pos, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
+    Value value = (-1) * alphabeta_search(pos, childPv, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
     pos.undo_move(move.move);
-    // [TODO] 同値のとき切っていいのかを検討
-    if(value <= alpha || beta <= value) {
-      return value; // カット
+
+    // アルファ・ベータカット
+    if(value >= beta) {
+      // betaカットの場合でも最適なPVを返す
+      pv.clear();
+      pv.emplace_back(move.move);
+      pv.insert(pv.end(), childPv.begin(), childPv.end());
+      return value;
     }
 
-    chmax(alpha, value);
+    if(value > maxValue) {
+      maxValue = value;
+      // 最適なPVを構築
+      bestPv.clear();
+      bestPv.emplace_back(move.move);
+      bestPv.insert(bestPv.end(), childPv.begin(), childPv.end());
+    }
+
+    if(value > alpha) {
+      alpha = value;
+      if(depth == 1) {
+        // std::cout << depth << USI::pv(pos, ply_from_root) << " " << pos.moves_from_start(false) << std::endl;
+      }
+    }
   }
 
-  return alpha;
+  pv = bestPv;
+  return maxValue;
 }
