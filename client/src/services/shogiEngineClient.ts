@@ -163,11 +163,11 @@ export default class ShogiEngineClient extends EventEmitter {
     }
 
     const commandId = `cmd_${++this.commandSequence}`;
-    const timeout = options?.timeout || 20000;
+    const timeout = options?.timeout || 60000;
 
     // console.log(`[DEBUG] Engine process PID: ${this.engine.pid}`);
     // console.log(`[DEBUG] Engine stdin writable: ${this.engine.stdin.writable}`);
-    // console.log(`[DEBUG] Sending command: ${command}`);
+    console.log(`[DEBUG] Sending command: ${command}`);
     
 
     return new Promise((resolve, reject) => {
