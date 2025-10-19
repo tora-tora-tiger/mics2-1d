@@ -84,7 +84,9 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
     // 棋譜に追加
     const isVaildAppend = record.append(move);
     if(!isVaildAppend) {
-      throw new Error(`Failed to append move: ${move.toString()}`);
+      console.error(`Failed to append move: ${move.toString()}`);
+      break;
+      // throw new Error(`Failed to append move: ${move.toString()}`);
     }
     record.current.setElapsedMs(thinkTime);
   }
