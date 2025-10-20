@@ -107,7 +107,7 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
 console.time('autoPlay');
 autoPlay({
   limitStep: 100,
-  blackEngineName: "alphabeta-aarch64",
+  blackEngineName: "alphabeta-v2-aarch64",
   whiteEngineName: "alphabeta-v2-aarch64",
 }).then(record => {
   console.timeEnd('autoPlay');

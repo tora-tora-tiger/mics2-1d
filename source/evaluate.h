@@ -39,6 +39,21 @@ enum {
 extern int PieceValue[PIECE_NB];
 extern int HavingPieceValue[PIECE_NB];
 
+inline constexpr int our_effect_value[] = {
+  68 * 1024 / 1,
+  68 * 1024 / 2,
+  68 * 1024 / 3,
+  68 * 1024 / 4,
+  68 * 1024 / 5,
+};
+inline constexpr int their_effect_value[] = {
+  96 * 1024 / 1,
+  96 * 1024 / 2,
+  96 * 1024 / 3,
+  96 * 1024 / 4,
+  96 * 1024 / 5,
+};
+
 Value evaluate(const Position &pos);
 } // namespace Eval
 
