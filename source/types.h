@@ -666,7 +666,7 @@ static std::ostream &operator<<(std::ostream &os, Move m) {
 struct ExtMove {
 
   Move move; // 指し手(32bit)
-  int value; // 指し手オーダリング(並び替え)のときのスコア(符号つき32bit)
+  int32_t value; // 指し手オーダリング(並び替え)のときのスコア(符号つき32bit)
 
   // Move型とは暗黙で変換できていい。
 

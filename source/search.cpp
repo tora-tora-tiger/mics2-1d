@@ -268,6 +268,7 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     std::vector<Move> childPv;
 
     pos.do_move(move.move, si); // 局面を1手進める
+    // [TODO] ExtMoveにはvalueがあるけどそれを使うべきかを検討(そのまま置換するとエラーが出る)
     Value value = (-1) * alphabeta_search(pos, childPv, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
     pos.undo_move(move.move);
 
