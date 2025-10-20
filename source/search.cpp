@@ -246,11 +246,22 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
   StateInfo si;
   const auto legalMoves = MoveList<LEGAL_ALL>(pos);
 
-  if(legalMoves.size() == 0 || pos.is_repetition(4)) {
+  if(legalMoves.size() == 0) {
     // 合法手が存在しない -> 詰み
-    // 千日手のときは，とりあえず負けにしておく
     pv.clear();
     return mated_in(ply_from_root);
+  }
+  
+  /**
+   * 千日手判定
+   * 先手負け
+   * 行ったり来たりするにしても16手かかる
+   * 後手が番のときは次の先手が詰みという処理をする
+   * [TODO] 千日手用の値があると思うから置き換える
+   */
+  if(pos.is_repetition(16)) {
+    pv.clear();
+    return mated_in(ply_from_root + (pos.side_to_move() == WHITE));
   }
 
   for (ExtMove move : legalMoves) {
