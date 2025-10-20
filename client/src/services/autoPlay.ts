@@ -39,10 +39,14 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
   record.metadata.setStandardMetadata(RecordMetadataKey.WHITE_NAME, config.whiteEngineName);
   
   // エンジンの初期化
-  const blackClient = new ShogiEngineClient(`../source/minishogi-by-gcc`);
-  const whiteClient = new ShogiEngineClient(`../source/minishogi-by-gcc`);
-  // const blackClient = new ShogiEngineClient(`../engines/${config.blackEngineName}`);
-  // const whiteClient = new ShogiEngineClient(`../engines/${config.whiteEngineName}`);
+  const blackClientPath = config.blackEngineName === "latest"
+    ? `../source/minishogi-by-gcc`
+    : `../engines/${config.blackEngineName}`;
+  const whiteClientPath = config.whiteEngineName === "latest"
+    ? `../source/minishogi-by-gcc`
+    : `../engines/${config.whiteEngineName}`;
+  const blackClient = new ShogiEngineClient(blackClientPath);
+  const whiteClient = new ShogiEngineClient(whiteClientPath);  
   blackClient.on('engine_response', (event) => {
     console.log(`\x1b[36m[BLACK]\x1b[0m ${event.data}`);
   });
@@ -103,9 +107,8 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
 console.time('autoPlay');
 autoPlay({
   limitStep: 100,
-  blackEngineName: "random-player-aarch64",
-  whiteEngineName: "random-player-aarch64",
-  // whiteEngineName: "alphabeta-aarch64",
+  blackEngineName: "alphabeta-aarch64",
+  whiteEngineName: "alphabeta-v2-aarch64",
 }).then(record => {
   console.timeEnd('autoPlay');
   const kif = exportKIF(record);
