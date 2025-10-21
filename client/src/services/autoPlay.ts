@@ -17,10 +17,15 @@ const initGame = async (client: ShogiEngineClient) => {
   await client.usinewgame();
 }
 
+interface AutoPlayColorConfig {
+  engineName: string; // エンジンのパス
+  displayName?: string; // 棋譜に表示する名前
+}
+
 interface AutoPlayConfig {
   limitStep: number; // 最大手数
-  blackEngineName: string; // 先手エンジンのパス
-  whiteEngineName: string; // 後手エンジンのパス
+  black: AutoPlayColorConfig;
+  white: AutoPlayColorConfig;
 }
 
 /**
@@ -35,16 +40,16 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
   const record = new Record(initialPosition);
 
   // 棋譜にプレイヤー情報を設定
-  record.metadata.setStandardMetadata(RecordMetadataKey.BLACK_NAME, config.blackEngineName);
-  record.metadata.setStandardMetadata(RecordMetadataKey.WHITE_NAME, config.whiteEngineName);
+  record.metadata.setStandardMetadata(RecordMetadataKey.BLACK_NAME, config.black.displayName ?? config.black.engineName);
+  record.metadata.setStandardMetadata(RecordMetadataKey.WHITE_NAME, config.white.displayName ?? config.white.engineName);
   
   // エンジンの初期化
-  const blackClientPath = config.blackEngineName === "latest"
+  const blackClientPath = config.black.engineName === "latest"
     ? `../source/minishogi-by-gcc`
-    : `../engines/${config.blackEngineName}`;
-  const whiteClientPath = config.whiteEngineName === "latest"
+    : `../engines/${config.black.engineName}`;
+  const whiteClientPath = config.white.engineName === "latest"
     ? `../source/minishogi-by-gcc`
-    : `../engines/${config.whiteEngineName}`;
+    : `../engines/${config.white.engineName}`;
   const blackClient = new ShogiEngineClient(blackClientPath);
   const whiteClient = new ShogiEngineClient(whiteClientPath);  
   blackClient.on('engine_response', (event) => {
@@ -107,8 +112,14 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
 console.time('autoPlay');
 autoPlay({
   limitStep: 100,
-  blackEngineName: "alphabeta-v2-aarch64",
-  whiteEngineName: "alphabeta-v2-aarch64",
+  black: {
+    engineName: "latest",
+    displayName: "評価関数を作ってみよう7"
+  },
+  white: {
+    engineName: "alphabeta-v2-aarch64",
+    // displayName: ""
+  },
 }).then(record => {
   console.timeEnd('autoPlay');
   const kif = exportKIF(record);
