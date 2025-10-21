@@ -134,11 +134,23 @@ Value evaluate(const Position &pos) {
   
   // material value
   {
-    // 盤上の駒の評価
-    for (Square sq : SQ)
+    // 25ループ
+    for (Square sq : SQ) {
+      // 盤上の駒の評価
       score += PieceValue[pos.piece_on(sq)];
+    // 利きの評価
+    // enum Square: int32_t
+    // std::cout << "pos.attackers_to(sq, BLACK): " << pos.attackers_to(sq, BLACK) << std::endl;
+    score += KKPEE[pos.king_square(BLACK)]
+                  [pos.king_square(WHITE)]
+                  [sq]
+                  [std::min(2, (int32_t)pos.attackers_to(BLACK, sq).pop_count())]
+                  [std::min(2, (int32_t)pos.attackers_to(WHITE, sq).pop_count())]
+                  [pos.piece_on(sq)];
+  }
     
     // 手駒の評価
+    // 2 * 5 = 10ループ
     for (Color c : COLOR) {
       const Hand &hand = pos.hand_of(c);
       if (hand == HAND_ZERO)
@@ -149,12 +161,6 @@ Value evaluate(const Position &pos) {
         score += (c == BLACK ? 1 : -1) * Value(cnt * (HavingPieceValue[pc]));
       }
     }
-  }
-  
-  // 利きの評価
-  for(auto sq: SQ) {
-    // enum Square: int32_t
-    score += KKPEE[pos.king_square(BLACK)][pos.king_square(WHITE)][sq][std::min(2, (int32_t)pos.attackers_to(sq, BLACK))][std::min(2, (int32_t)pos.attackers_to(sq, WHITE))][pos.piece_on(sq)];
   }
   
   // 手番側から見た評価値を返す
