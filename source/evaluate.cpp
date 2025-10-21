@@ -140,7 +140,6 @@ Value evaluate(const Position &pos) {
       score += PieceValue[pos.piece_on(sq)];
     // 利きの評価
     // enum Square: int32_t
-    // std::cout << "pos.attackers_to(sq, BLACK): " << pos.attackers_to(sq, BLACK) << std::endl;
     score += KKPEE[pos.king_square(BLACK)]
                   [pos.king_square(WHITE)]
                   [sq]
