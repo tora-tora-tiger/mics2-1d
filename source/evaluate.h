@@ -57,9 +57,12 @@ inline constexpr int their_effect_value[] = {
 
 /**
  * 機器の勝ちを合算した値を求めるテーブル
- * [先手玉のマス][後手玉のマス][対象駒][そのマスの先手の利きの数][そのマスの後手の利きの数]
+ * [先手玉のマス][後手玉のマス][対象駒][そのマスの先手の利きの数(max2)][そのマスの後手の利きの数(max2)][駒(先後区別あり)]
+ * 81*81*81*3*3*size_of(int16_t)*32 = 306MB
+ * 1つの升にある利きは、2つ以上の利きは同一視。
  */
-extern int16_t effect_table[SQ_NB][SQ_NB][SQ_NB][11][11];
+// extern int16_t effect_table[SQ_NB][SQ_NB][SQ_NB][11][11];
+extern int16_t KKPEE[SQ_NB][SQ_NB][SQ_NB][3][3][PIECE_NB];
 
 void init();
 Value evaluate(const Position &pos);
