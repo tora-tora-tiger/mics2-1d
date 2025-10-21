@@ -240,6 +240,15 @@ constexpr bool canPromote(const Color c, const Square from, const Square to) {
   return canPromote(c, from) || canPromote(c, to);
 }
 
+// 盤面の座標を反転させる関数（先手から見た座標を後手から見た座標に変換）
+// 5五将棋の5x5盤面で使用
+// 例) SQ_11(0) → SQ_55(24)
+constexpr Square Inv(Square sq) {
+  File f = file_of(sq);
+  Rank r = rank_of(sq);
+  return Square((4 - f) * 5 + (4 - r));
+}
+
 // Squareを綺麗に出力する(USI形式ではない)
 // "PRETTY_JP"をdefineしていれば、日本語文字での表示になる。例 → ８八
 // "PRETTY_JP"をdefineしていなければ、数字のみの表示になる。例 → 88
