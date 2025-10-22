@@ -7,16 +7,17 @@
 # ターゲットCPU
 # 利用できるCPU拡張命令を指定する。
 # ARM系ならOTHERを指定する。
+# 実行速度を最大化するため、ご使用のCPUに合わせて設定してください
 
-# TARGET_CPU = AVX2
-# TARGET_CPU = SSE42
-# TARGET_CPU = SSE41
-# TARGET_CPU = SSSE3
-# TARGET_CPU = SSE2
-# TARGET_CPU = NO_SSE
-TARGET_CPU = OTHER
-# TARGET_CPU = ZEN1
-# TARGET_CPU = ZEN2
+# TARGET_CPU = AVX2    # Intel Core i7/i9 (第2世代以降) 向け
+# TARGET_CPU = SSE42   # Intel Core i7 (Nehalem) 向け
+# TARGET_CPU = SSE41   # Intel Core 2 (Penryn) 向け
+# TARGET_CPU = SSSE3   # Intel Core 2 向け
+# TARGET_CPU = SSE2    # 基本的なSSE2対応CPU向け
+# TARGET_CPU = NO_SSE  # 32bit用
+TARGET_CPU = OTHER     # ARM用、または汎用的な互換性重視
+# TARGET_CPU = ZEN1    # AMD Ryzen 1000/2000シリーズ向け
+# TARGET_CPU = ZEN2    # AMD Ryzen 3000/5000シリーズ向け（推奨）
 
 # デバッガーを使用するか
 DEBUG = OFF
@@ -35,6 +36,19 @@ WCFLAGS  =
 LDFLAGS  =
 LIBS     =
 INCLUDE  = # -I../include
+
+# 最適化フラグ
+CFLAGS += -O3
+
+# 実行速度最大化のための追加最適化オプション
+CFLAGS += -march=native              # 現在のCPUアーキテクチャに最適化
+CFLAGS += -mtune=native              # 現在のCPUにチューニング
+CFLAGS += -funroll-loops             # ループ展開を強制
+CFLAGS += -fprefetch-loop-arrays     # 配列アクセスのプリフェッチ
+CFLAGS += -fassociative-math         # 浮動小数点の結合法則を利用
+CFLAGS += -fno-signed-zeros         # 符号付きゼロを無視
+CFLAGS += -freciprocal-math         # 除算を逆数計算に置き換え
+CFLAGS += -funsafe-math-optimizations # 数学的な厳密性を犠牲にした最適化
 
 # デバッガーを使わないなら、NDEBUGをdefineする。
 ifeq ($(DEBUG),OFF)
@@ -70,6 +84,10 @@ else
 		# C++17のfilesystem
 		# LDFLAGS += -lstdc++fs
 
+		# GCC固有の最適化オプション
+		CFLAGS += -frename-registers    # レジスタのリネーム
+		CFLAGS += -fweb                 # Web最適化
+
 	endif
 endif
 
@@ -97,7 +115,7 @@ LDFLAGS += -Wl,-s
 # CFLAGS += -D_WIN64
 
 # これを指定していると、各CPU向けの実行ファイルが生成されないので指定すべきではない。
-# CFLAGS   += -march=native
+CFLAGS   += -march=native
 
 # デバッグ情報を付加
 # CFLAGS  += -g3 -ggdb
