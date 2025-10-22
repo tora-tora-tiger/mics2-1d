@@ -222,9 +222,47 @@ public:
   Bitboard attackers_to(Color c, Square sq) const {
     return attackers_to(c, sq, pieces());
   }
-  Bitboard attackers_to(Color c, Square sq, const Bitboard &occ) const;
-  Bitboard attackers_to(Square sq) const { return attackers_to(sq, pieces()); }
-  Bitboard attackers_to(Square sq, const Bitboard &occ) const;
+  // sに利きのあるc側の駒を列挙する。
+  // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied
+  // bitboardとして)
+  inline Bitboard attackers_to(Color c, Square sq, const Bitboard &occ) const {
+    ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
+
+    Color them = ~c;
+
+    // sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
+    return ((pawnEffect(them, sq) & pieces(PAWN)) |
+            (silverEffect(them, sq) & pieces(SILVER_HDK)) |
+            (goldEffect(them, sq) & pieces(GOLDS_HDK)) |
+            (bishopEffect(sq, occ) & pieces(BISHOP_HORSE)) |
+            (rookEffect(sq, occ) & pieces(ROOK_DRAGON))) &
+          pieces(c); // 先後混在しているのでc側の駒だけ最後にマスクする。
+  }
+  inline Bitboard attackers_to(Square sq) const { return attackers_to(sq, pieces()); }
+  // sに利きのあるc側の駒を列挙する。先後両方。
+  // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied
+  // bitboardとして)
+  inline Bitboard attackers_to(Square sq, const Bitboard &occ) const {
+    ASSERT_LV3(sq <= SQ_NB);
+
+    // sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
+    return
+        // 先手の歩・銀・金・HDK
+        (((pawnEffect(WHITE, sq) & pieces(PAWN)) |
+          (silverEffect(WHITE, sq) & pieces(SILVER_HDK)) |
+          (goldEffect(WHITE, sq) & pieces(GOLDS_HDK))) &
+        pieces(BLACK)) |
+
+        // 後手の歩・銀・金・HDK
+        (((pawnEffect(BLACK, sq) & pieces(PAWN)) |
+          (silverEffect(BLACK, sq) & pieces(SILVER_HDK)) |
+          (goldEffect(BLACK, sq) & pieces(GOLDS_HDK))) &
+        pieces(WHITE))
+
+        // 先後の角・飛
+        | (bishopEffect(sq, occ) & pieces(BISHOP_HORSE)) |
+        (rookEffect(sq, occ) & pieces(ROOK_DRAGON));
+  }
 
   // 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
   Bitboard attackers_to_pawn(Color c, Square pawn_sq) const;

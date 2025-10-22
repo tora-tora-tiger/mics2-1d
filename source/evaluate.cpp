@@ -134,28 +134,32 @@ Value evaluate(const Position &pos) {
   const Bitboard &oc = pos.pieces();
   
   // 25ループ
-  for (Square sq : SQ) {
+  for (const Square &sq : SQ) {
     // 盤上の駒の評価
     score += PieceValue[pos.piece_on(sq)];
   // 利きの評価
+  const int &batt = pos.attackers_to(BLACK, sq, oc).pop_count();
+  const int &watt = pos.attackers_to(WHITE, sq, oc).pop_count();
   // enum Square: int32_t
   score += KKPEE[pos.king_square(BLACK)]
                 [pos.king_square(WHITE)]
                 [sq]
-                [std::min(2, (int32_t)pos.attackers_to(BLACK, sq, oc).pop_count())]
-                [std::min(2, (int32_t)pos.attackers_to(WHITE, sq, oc).pop_count())]
+                [batt > 2 ? 2 : batt]
+                [watt > 2 ? 2 : watt]
                 [pos.piece_on(sq)];
+  // max(tar, 2)最適化ビット演算
+  // tar>>1 
 }
   
   // 手駒の評価
   // 2 * 5 = 10ループ
-  for (Color c : COLOR) {
+  for (const Color &c : COLOR) {
     const Hand &hand = pos.hand_of(c);
     if (hand == HAND_ZERO)
       continue;
     for (Piece pc : {PAWN, SILVER, BISHOP, ROOK, GOLD}) {
       // 手駒の枚数を取得
-      int cnt = hand_count(hand, pc);
+      const int &cnt = hand_count(hand, pc);
       score += (c == BLACK ? 1 : -1) * Value(cnt * (HavingPieceValue[pc]));
     }
   }
