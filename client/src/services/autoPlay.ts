@@ -114,7 +114,7 @@ autoPlay({
   limitStep: 100,
   black: {
     engineName: "latest",
-    displayName: "評価関数を作ってみよう7"
+    displayName: "評価関数を作ってみよう7attackers-inline"
   },
   white: {
     engineName: "alphabeta-v2-aarch64",
