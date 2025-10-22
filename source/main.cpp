@@ -1,5 +1,6 @@
 ﻿#include "search.h"
 #include "usi.h"
+#include "evaluate.h"
 
 
 int main(int argc, char *argv[]) {
@@ -7,6 +8,7 @@ int main(int argc, char *argv[]) {
   Bitboards::init();
   Position::init();
   Search::init();
+  Eval::init();
 
   // USIコマンドの応答部
   USI::loop(argc, argv);

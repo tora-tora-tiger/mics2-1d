@@ -231,20 +231,21 @@ std::string USI::pv(const Position &pos, int depth) {
   const auto &rootMoves = Search::rootMoves;
   uint64_t nodes_searched = Search::Nodes;
 
+  // rootMovesが空の場合は何も出力しない
+  if (rootMoves.empty())
+    return ss.str();
+
   bool updated = rootMoves[0].score != VALUE_INFINITE;
 
-  if (depth == 1 && !updated)
-    goto END;
+  if (!updated)
+    return ss.str();
 
   {
-    int d = updated ? depth : depth - 1;
-    Value v = updated ? rootMoves[0].score : rootMoves[0].previousScore;
+    int d = depth;
+    Value v = rootMoves[0].score;
 
     if (v == -VALUE_INFINITE)
-      goto END;
-
-    if (ss.rdbuf()->in_avail())
-      ss << endl;
+      return ss.str();
 
     ss << "info"
        << " depth " << d << " seldepth " << rootMoves[0].selDepth << " score "
@@ -254,7 +255,12 @@ std::string USI::pv(const Position &pos, int depth) {
        << nodes_searched * 1000 / elapsed;
 
     ss << " time " << elapsed;
-    ss << " pv " << rootMoves[0].pv[0];
+    ss << " pv " << USI::move(rootMoves[0].pv[0]);
+
+    // PVの他の手も出力（もしあれば）
+    for (size_t i = 1; i < rootMoves[0].pv.size(); ++i) {
+      ss << " " << USI::move(rootMoves[0].pv[i]);
+    }
   }
 
 END:;

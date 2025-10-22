@@ -17,10 +17,15 @@ const initGame = async (client: ShogiEngineClient) => {
   await client.usinewgame();
 }
 
+interface AutoPlayColorConfig {
+  engineName: string; // エンジンのパス
+  displayName?: string; // 棋譜に表示する名前
+}
+
 interface AutoPlayConfig {
   limitStep: number; // 最大手数
-  blackEngineName: string; // 先手エンジンのパス
-  whiteEngineName: string; // 後手エンジンのパス
+  black: AutoPlayColorConfig;
+  white: AutoPlayColorConfig;
 }
 
 /**
@@ -35,14 +40,18 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
   const record = new Record(initialPosition);
 
   // 棋譜にプレイヤー情報を設定
-  record.metadata.setStandardMetadata(RecordMetadataKey.BLACK_NAME, config.blackEngineName);
-  record.metadata.setStandardMetadata(RecordMetadataKey.WHITE_NAME, config.whiteEngineName);
+  record.metadata.setStandardMetadata(RecordMetadataKey.BLACK_NAME, config.black.displayName ?? config.black.engineName);
+  record.metadata.setStandardMetadata(RecordMetadataKey.WHITE_NAME, config.white.displayName ?? config.white.engineName);
   
   // エンジンの初期化
-  const blackClient = new ShogiEngineClient(`../source/minishogi-by-gcc`);
-  const whiteClient = new ShogiEngineClient(`../source/minishogi-by-gcc`);
-  // const blackClient = new ShogiEngineClient(`../engines/${config.blackEngineName}`);
-  // const whiteClient = new ShogiEngineClient(`../engines/${config.whiteEngineName}`);
+  const blackClientPath = config.black.engineName === "latest"
+    ? `../source/minishogi-by-gcc`
+    : `../engines/${config.black.engineName}`;
+  const whiteClientPath = config.white.engineName === "latest"
+    ? `../source/minishogi-by-gcc`
+    : `../engines/${config.white.engineName}`;
+  const blackClient = new ShogiEngineClient(blackClientPath);
+  const whiteClient = new ShogiEngineClient(whiteClientPath);  
   blackClient.on('engine_response', (event) => {
     console.log(`\x1b[36m[BLACK]\x1b[0m ${event.data}`);
   });
@@ -84,7 +93,9 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
     // 棋譜に追加
     const isVaildAppend = record.append(move);
     if(!isVaildAppend) {
-      throw new Error(`Failed to append move: ${move.toString()}`);
+      console.error(`Failed to append move: ${move.toString()}`);
+      break;
+      // throw new Error(`Failed to append move: ${move.toString()}`);
     }
     record.current.setElapsedMs(thinkTime);
   }
@@ -101,9 +112,14 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
 console.time('autoPlay');
 autoPlay({
   limitStep: 100,
-  blackEngineName: "random-player-aarch64",
-  whiteEngineName: "random-player-aarch64",
-  // whiteEngineName: "alphabeta-aarch64",
+  black: {
+    engineName: "latest",
+    displayName: "評価関数を作ってみよう7"
+  },
+  white: {
+    engineName: "alphabeta-v2-aarch64",
+    // displayName: ""
+  },
 }).then(record => {
   console.timeEnd('autoPlay');
   const kif = exportKIF(record);
