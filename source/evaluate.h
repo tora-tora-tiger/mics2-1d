@@ -64,6 +64,11 @@ inline constexpr int their_effect_value[] = {
 // extern int16_t effect_table[SQ_NB][SQ_NB][SQ_NB][11][11];
 extern int16_t KKPEE[SQ_NB][SQ_NB][SQ_NB][3][3][PIECE_NB];
 
+// ビットが0か1か2以上かを高速に判定する関数
+inline int fast_effect_count(const Bitboard &b) {
+  return (b ? (((u32)b & (b - 1)) ? 2 : 1) : 0);
+}
+
 void init();
 Value evaluate(const Position &pos);
 } // namespace Eval

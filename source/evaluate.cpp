@@ -1,7 +1,6 @@
 ﻿#include "evaluate.h"
 
 namespace Eval {
-
 // 利き評価テーブルの定義
 // [先手玉のマス][後手玉のマス][対象駒][そのマスの先手の利きの数(max2)][そのマスの後手の利きの数(max2)][駒(先後区別あり)]
 int16_t KKPEE[SQ_NB][SQ_NB][SQ_NB][3][3][PIECE_NB];
@@ -53,9 +52,6 @@ void init() {
 
               KKPEE[king_black][king_white][sq][m1][m2][pc] = int16_t(score);
             }
-
-
-  
 }
 int PieceValue[PIECE_NB] = {
   0,
@@ -138,17 +134,13 @@ Value evaluate(const Position &pos) {
     // 盤上の駒の評価
     score += PieceValue[pos.piece_on(sq)];
   // 利きの評価
-  const int &batt = pos.attackers_to(BLACK, sq, oc).pop_count();
-  const int &watt = pos.attackers_to(WHITE, sq, oc).pop_count();
   // enum Square: int32_t
   score += KKPEE[pos.king_square(BLACK)]
                 [pos.king_square(WHITE)]
                 [sq]
-                [batt > 2 ? 2 : batt]
-                [watt > 2 ? 2 : watt]
+                [fast_effect_count(pos.attackers_to(BLACK, sq, oc))]
+                [fast_effect_count(pos.attackers_to(WHITE, sq, oc))]
                 [pos.piece_on(sq)];
-  // max(tar, 2)最適化ビット演算
-  // tar>>1 
 }
   
   // 手駒の評価
@@ -167,5 +159,4 @@ Value evaluate(const Position &pos) {
   // 手番側から見た評価値を返す
   return pos.side_to_move() == BLACK ? score : -score;
 }
-  
 } // namespace Eval
