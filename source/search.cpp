@@ -112,7 +112,7 @@ void Search::search(Position &pos) {
     if (Limits.use_time_management()) {
       timerThread = new std::thread([&] {
         while (Time.elapsed() < endTime && !Stop)
-          std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+          std::this_thread::sleep_for(std::chrono::milliseconds(9900));
         Stop = true;
       });
     }
@@ -157,16 +157,10 @@ void Search::search(Position &pos) {
           currentBestMove = move;
         }
 
-        // debug
-        if(depth == maxDepth) {
-          std::cout << "currentMax : " << rootMoves[i].pv[0] << " : " << currentMaxValue << std::endl;
-        }
         std::cout << USI::pv(pos, depth) << std::endl;
       }
       
-      // この深さの探索結果でinfo出力
-      if (!Stop) {
-        // std::cout << USI::pv(pos, depth) << std::endl;
+      if (currentMaxValue > maxValue) {
         maxValue = currentMaxValue;
         bestMove = currentBestMove;
       }
