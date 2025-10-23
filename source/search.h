@@ -3,6 +3,7 @@
 
 #include "misc.h"
 #include "position.h"
+#include "tt.h"
 #include <vector>
 
 

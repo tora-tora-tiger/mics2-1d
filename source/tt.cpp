@@ -105,7 +105,7 @@ void TTWriter::write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev
     entry->save(uint32_t(k >> 32), v, pv, b, d, m, ev, generation8);
 }
 
-TTWriter::TTWriter(TTEntry* tte) : entry(tte) {}
+// TTWriter::TTWriter(TTEntry* tte) : entry(tte) {}
 
 // TranspositionTableの実装
 TranspositionTable::TranspositionTable() : generation8(0) {}

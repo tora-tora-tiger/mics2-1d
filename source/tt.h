@@ -30,10 +30,19 @@ class TTWriter {
 public:
     void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
 
+    // デフォルトコンストラクタ
+    TTWriter() : entry(nullptr) {}
+
+    // コピー代入演算子
+    TTWriter& operator=(const TTWriter& other) {
+        entry = other.entry;
+        return *this;
+    }
+
 private:
     friend class TranspositionTable;
     struct TTEntry* entry;
-    TTWriter(struct TTEntry* tte);
+    TTWriter(struct TTEntry* tte) : entry(tte) {}
 };
 
 // 置換表エントリ

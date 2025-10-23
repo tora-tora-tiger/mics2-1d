@@ -64,6 +64,16 @@
 //      configure
 // --------------------
 
+// --------------------
+//    置換表設定
+// --------------------
+
+// 置換表を使用するかどうか
+#define USE_TRANSPOSITION_TABLE
+
+// 置換表のデフォルトサイズ[MB]
+#define DEFAULT_TT_SIZE 16
+
 // --- assertion tools
 
 // DEBUGビルドでないとassertが無効化されてしまうので無効化されないASSERT

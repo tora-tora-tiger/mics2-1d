@@ -161,6 +161,7 @@ SOURCES  = \
 	usi.cpp             \
 	evaluate.cpp        \
 	search.cpp          \
+	tt.cpp              \
 	extra/rp_cmd.cpp    \
 	extra/user_test.cpp \
 

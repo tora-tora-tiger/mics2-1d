@@ -42,10 +42,20 @@ bool Stop;
 } // namespace Search
 
 // 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
-void Search::init() {}
+void Search::init() {
+#ifdef USE_TRANSPOSITION_TABLE
+  // 置換表を初期化
+  TT.resize(DEFAULT_TT_SIZE);
+#endif
+}
 
 // isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
-void Search::clear() {}
+void Search::clear() {
+#ifdef USE_TRANSPOSITION_TABLE
+  // 置換表をクリア
+  TT.clear();
+#endif
+}
 
 // 同じ関数名で引数が異なる関数をオーバーロードという。
 // Value search(Position &pos, int depth, int ply_from_root);
@@ -82,6 +92,11 @@ void Search::search(Position &pos) {
 
   /* ここから探索部を記述する */
   {
+#ifdef USE_TRANSPOSITION_TABLE
+    // 置換表の新しい探索セッションを開始
+    TT.new_search();
+#endif
+
     /* 時間制御 */
     Color us = pos.side_to_move();
     std::thread *timerThread = nullptr;
@@ -235,6 +250,32 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     return Eval::evaluate(pos);
   }
 
+#ifdef USE_TRANSPOSITION_TABLE
+  // 置換表を参照
+  bool ttHit;
+  TTData ttd(MOVE_NONE, VALUE_ZERO, VALUE_ZERO, DEPTH_ENTRY_OFFSET, BOUND_NONE, false);
+  TTWriter ttWriter;
+
+  // 置換表を検索
+  auto tt_result = TT.probe(pos.key());
+  ttHit = std::get<0>(tt_result);
+  ttd = std::get<1>(tt_result);
+  ttWriter = std::get<2>(tt_result);
+
+  // 置換表にヒットした場合
+  if (ttHit && ttd.depth >= depth) {
+    if (ttd.bound == BOUND_EXACT) {
+      pv.assign(1, ttd.move);
+      return ttd.value;
+    } else if (ttd.bound == BOUND_LOWER && ttd.value >= beta) {
+      pv.assign(1, ttd.move);
+      return ttd.value;
+    } else if (ttd.bound == BOUND_UPPER && ttd.value <= alpha) {
+      return ttd.value;
+    }
+  }
+#endif
+
   // 探索深さに達したら評価関数を呼び出して終了
   if (depth == 0) {
     pv.clear();
@@ -264,7 +305,25 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     return mated_in(ply_from_root + (pos.side_to_move() == WHITE));
   }
 
+#ifdef USE_TRANSPOSITION_TABLE
+  // 探索順序の最適化：置換表の最善手を優先
+  std::vector<ExtMove> orderedMoves;
   for (ExtMove move : legalMoves) {
+    if (ttHit && move.move == ttd.move) {
+      // 置換表の最善手を最初に
+      orderedMoves.insert(orderedMoves.begin(), move);
+    } else {
+      orderedMoves.push_back(move);
+    }
+  }
+#else
+  std::vector<ExtMove> orderedMoves;
+  for (ExtMove move : legalMoves) {
+    orderedMoves.push_back(move);
+  }
+#endif
+
+  for (ExtMove move : orderedMoves) {
     std::vector<Move> childPv;
 
     pos.do_move(move.move, si); // 局面を1手進める
@@ -296,6 +355,25 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
       }
     }
   }
+
+#ifdef USE_TRANSPOSITION_TABLE
+  // 置換表に探索結果を保存
+  if (!Stop) {
+    Bound bound;
+    if (maxValue >= beta) {
+      bound = BOUND_LOWER;
+    } else if (maxValue <= alpha) {
+      bound = BOUND_UPPER;
+    } else {
+      bound = BOUND_EXACT;
+    }
+
+    Move bestMove = bestPv.empty() ? MOVE_NONE : bestPv[0];
+    Value evalValue = Eval::evaluate(pos);
+
+    ttWriter.write(pos.key(), maxValue, true, bound, depth, bestMove, evalValue, TT.generation());
+  }
+#endif
 
   pv = bestPv;
   return maxValue;

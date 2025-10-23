@@ -113,12 +113,12 @@ console.time('autoPlay');
 autoPlay({
   limitStep: 100,
   black: {
-    engineName: "latest",
-    displayName: "評価関数を作ってみよう7attackers-inline"
-  },
-  white: {
     engineName: "alphabeta-v2-aarch64",
     // displayName: ""
+  },
+  white: {
+    engineName: "latest",
+    displayName: "TT実装1"
   },
 }).then(record => {
   console.timeEnd('autoPlay');
