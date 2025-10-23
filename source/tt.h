@@ -2,7 +2,40 @@
 #define _TT_H_
 
 #include "types.h"
+#include "misc.h"
 #include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <algorithm>
+
+// genBound8には大部分の詳細が含まれています。
+// 次の定数を使用して、5ビットの先頭世代ビットと3ビットの末尾のその他のビットを操作します。
+// これらのビットは他の用途のために予約されています。
+// ⇨ generation8の下位↓bitは、generation用ではなく、別の情報を格納するのに用いる。
+//   (PV nodeかどうかのフラグとBoundに用いている。)
+
+static constexpr unsigned GENERATION_BITS = 3;
+
+// increment for generation field
+// 世代フィールドをインクリメント
+// ⇨ 次のgenerationにするために加算する定数。2の↑乗。
+
+static constexpr int GENERATION_DELTA = (1 << GENERATION_BITS);
+
+// cycle length
+// サイクル長
+// ⇨ generationを加算していき、1周して戻ってくるまでの長さ。
+
+static constexpr int GENERATION_CYCLE = 255 + GENERATION_DELTA;
+
+// mask to pull out generation number
+// TTEntryから世代番号を抽出するためのマスク
+
+static constexpr int GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
+
+// Move圧縮関数の宣言
+static inline uint16_t move_to16(Move m);
+static inline Move move_from16(uint16_t m16);
 
 // ■ 置換表（Transposition Table）の解説
 //
@@ -69,13 +102,13 @@ struct TTData {
 class TTWriter {
 public:
     // 指定されたパラメータでTTEntryを更新する
-    void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+    inline void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
 
     // デフォルトコンストラクタ：未使用状態を示す
     TTWriter() : entry(nullptr) {}
 
     // コピー代入演算子：他のWriterから状態を引き継ぐ
-    TTWriter& operator=(const TTWriter& other) {
+    inline TTWriter& operator=(const TTWriter& other) {
         entry = other.entry;
         return *this;
     }
@@ -90,6 +123,68 @@ private:
     // コンストラクタ：TranspositionTableのみから呼び出される
     TTWriter(struct TTEntry* tte) : entry(tte) {}
 };
+
+// ■ Move圧縮関数 move_to16() の解説
+//
+// 32bitのMove情報を16bitに効率的に圧縮する。
+// 5五将棋の盤面特性（25升）を活かして最小のbit数で表現。
+//
+// 【5五将棋におけるMoveのbit配分】
+// bit 15-11: from (0-24) + 1 = 1-25 (5bit)
+// bit 10-6 :  to   (0-24) + 1 = 1-25 (5bit)
+// bit 5     :  promotion (0-1)           (1bit)
+// bit 4     :  is_drop   (0-1)           (1bit)
+// bit 3-0   :  piece_type (0-6)          (4bit, 実際は3bit使用）
+//
+// 【設計思想】
+// ・通常の指し手: from(5) + to(5) + promote(1) + 0(1) = 11bit
+// ・駒打ち:       0(5) + to(5) + 0(1) + 1(1) + piece(3) = 10bit
+// ・合計で最大15bitを使用するので16bitに余裕を持って収まる
+//
+// 【利点】
+// ・メモリ使用量を半減できる（32bit→16bit）
+// ・キャッシュ効率が向上する（より多くのエントリがL1キャッシュに収まる）
+//
+static inline uint16_t move_to16(Move m) {
+    // 特殊な指し手は0として表現
+    if (m == MOVE_NONE || m == MOVE_NULL || m == MOVE_RESIGN)
+        return 0;
+
+    // 各フィールドを抽出してビットシフトで配置
+    uint16_t from = is_drop(m) ? 0 : (move_from(m) + 1);      // 移動元（0は駒打ち用）
+    uint16_t to = move_to(m) + 1;                            // 移動先（1-25の範囲）
+    uint16_t promote = is_promote(m) ? 1 : 0;                  // 成りフラグ
+    uint16_t drop = is_drop(m) ? 1 : 0;                         // 打ち駒フラグ
+    uint16_t dropped_piece = drop ? (move_dropped_piece(m) - PAWN + 1) : 0;  // 駒種
+
+    // ビットフィールドを結合して16bitに圧縮
+    return (from << 11) | (to << 6) | (promote << 5) | (drop << 4) | dropped_piece;
+}
+
+static inline Move move_from16(uint16_t m16) {
+    if (m16 == 0)
+        return MOVE_NONE;
+
+    uint16_t from = (m16 >> 11) & 0x1f;
+    uint16_t to = (m16 >> 6) & 0x1f;
+    uint16_t promote = (m16 >> 5) & 1;
+    uint16_t drop = (m16 >> 4) & 1;
+    uint16_t dropped_piece = m16 & 0xf;
+
+    if (drop) {
+        // 駒打ち
+        Piece pt = Piece(dropped_piece - 1 + PAWN);
+        return make_move_drop(pt, Square(to - 1));
+    } else {
+        // 通常の移動
+        Square from_sq = Square(from - 1);
+        Square to_sq = Square(to - 1);
+        if (promote)
+            return make_move_promote(from_sq, to_sq);
+        else
+            return make_move(from_sq, to_sq);
+    }
+}
 
 // ■ TTEntry構造体の解説
 //
@@ -160,25 +255,28 @@ struct TTEntry {
     bool is_pv() const;
 
     // このエントリの世代番号を返す（0-127）
-    uint8_t generation() const;
+    inline uint8_t generation() const;
+
+    // 相対的なエイジを計算（やねうら王の実装からコピー）
+    inline uint8_t relative_age(const uint8_t g8) const;
 
     // --- 操作メソッド群 ---
 
     // 指定されたデータをこのエントリに保存する
     // 引数：ハッシュ上位32bit, 探索値, PVフラグ, Bound, 深さ, 指し手, 評価値, 世代
-    void save(uint32_t k32, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t g8);
+    inline void save(uint32_t k32, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t g8);
 
     // このエントリが未使用かどうかを判定
     // depth8が0なら空とみなす
-    bool empty() const;
+    inline bool empty() const;
 
     // 指定された64bitキーがこのエントリに一致するか
     // 実際には上位32bitのみを比較する
-    bool matches(Key k) const;
+    inline bool matches(Key k) const;
 
     // このエントリの全データをTTData構造体として返す
     // 読み取り専用として安全なデータアクセスを提供する
-    TTData get_data() const;
+    inline TTData get_data() const;
 };
 
 // ■ Cluster構造体の解説
@@ -188,7 +286,7 @@ struct TTEntry {
 //
 // 【クラスタサイズの設計思想】
 // ・5五将棋は25升なので通常将棋より局面数が少ない
-// ・ハッシュ衝突の確率も低いため、3エントリで十分
+// ・ハッシュ衝突の確率も低いため、3エントリで十分(?)
 // ・メモリ効率と衝突率のバランスを重視
 //
 // 【エントリの選択戦略】
@@ -228,26 +326,26 @@ public:
     ~TranspositionTable();
 
     // 置換表のサイズを変更する[MB単位]
-    void resize(size_t mbSize);
+    inline void resize(size_t mbSize);
 
     // 置換表をクリア
-    void clear();
+    inline void clear();
 
     // 置換表の使用率を1000分率で返す
-    int hashfull() const;
+    inline int hashfull() const;
 
     // 新しい探索ごとに呼び出す（世代カウンターを更新）
-    void new_search();
+    inline void new_search();
 
     // 現在の世代
-    uint8_t generation() const;
+    inline uint8_t generation() const;
 
     // 指定されたkeyで置換表を検索
     // 返り値: (見つかったか, データ, ライター)
     std::tuple<bool, TTData, TTWriter> probe(const Key key) const;
 
     // 指定されたkeyに対応するクラスターの先頭エントリを返す
-    TTEntry* first_entry(const Key key) const;
+    inline TTEntry* first_entry(const Key key) const;
 
 private:
     // クラスター数
@@ -259,6 +357,144 @@ private:
     // 世代カウンター（8で割った余り）
     uint8_t generation8;
 };
+
+// TranspositionTableのinlineメソッド実装
+void TranspositionTable::resize(size_t mbSize) {
+    // 新しいクラスタ数を計算
+    size_t newClusterCount = (mbSize * 1024 * 1024) / sizeof(Cluster);
+
+    // 同じサイズなら何もしない（無駄な再確保防止）
+    if (newClusterCount == clusterCount)
+        return;
+
+    clusterCount = newClusterCount;
+
+    // 既存のテーブルがあれば解放
+    if (table) {
+        aligned_free(table);
+    }
+
+    // 新しいテーブルをアラインドメモリとして確保
+    table = (Cluster*)aligned_malloc(sizeof(Cluster) * clusterCount, 64);
+
+    // 確保失敗時のエラー処理
+    if (!table) {
+        std::cerr << "Failed to allocate transposition table: " << mbSize << " MB" << std::endl;
+        clusterCount = 0;
+        return;
+    }
+
+    // 新しいテーブルをゼロクリア
+    clear();
+}
+
+void TranspositionTable::clear() {
+    if (table) {
+        std::memset(table, 0, sizeof(Cluster) * clusterCount);
+    }
+}
+
+int TranspositionTable::hashfull() const {
+    if (!table)
+        return 0;
+
+    int count = 0;
+    const int sample_size = std::min(1000, (int)clusterCount);
+
+    for (int i = 0; i < sample_size; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            if (!table[i].entry[j].empty() &&
+                table[i].entry[j].generation() == generation8)
+                count++;
+        }
+    }
+
+    return count * 1000 / (sample_size * 3);
+}
+
+void TranspositionTable::new_search() {
+    generation8 = (generation8 + 1) & 0x7f;
+}
+
+uint8_t TranspositionTable::generation() const {
+    return generation8;
+}
+
+TTEntry* TranspositionTable::first_entry(const Key key) const {
+    // テーブル未確保時はnullptrを返す
+    if (!table)
+        return nullptr;
+
+    // 剰余演算でクラスタインデックスを計算
+    // これにより同じキーは必ず同じクラスタにマッピングされる
+    size_t index = size_t(key) % clusterCount;
+
+    // 該当クラスタの先頭エントリへのポインタを返す
+    return &table[index].entry[0];
+}
+
+// TTEntryのinlineメソッド実装
+uint8_t TTEntry::generation() const {
+    return genBound8 & 0x7f;
+}
+
+uint8_t TTEntry::relative_age(const uint8_t generation8) const {
+    // 世代のパックされた保存形式とその循環的な性質により、
+	// 世代エイジを正しく計算するために、GENERATION_CYCLEを加えます
+	// （256がモジュロとなり、関係のない下位nビットが
+	// 結果に影響を与えないようにするために必要な値も加えます）。
+	// これにより、generation8が次のサイクルにオーバーフローした後でも、
+	// エントリのエイジを正しく計算できます。
+
+	// ■ 補足情報
+	//
+	// generationは256になるとオーバーフローして0になるのでそれをうまく処理できなければならない。
+	// a,bが8bitであるとき ( 256 + a - b ) & 0xff　のようにすれば、オーバーフローを考慮した引き算が出来る。
+	// このテクニックを用いる。
+	// いま、
+	//   a := generationは下位3bitは用いていないので0。
+	//   b := genBound8は下位3bitにはBoundが入っているのでこれはゴミと考える。
+	// ( 256 + a - b + c) & 0xfc として c = 7としても結果に影響は及ぼさない、かつ、このゴミを無視した計算が出来る。
+
+	return (GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK;
+}
+
+bool TTEntry::empty() const {
+    return depth8 == 0;
+}
+
+bool TTEntry::matches(Key k) const {
+    // 上位32bitが一致すれば同じ局面とみなす
+    return (key32 == uint32_t(k >> 32));
+}
+
+TTData TTEntry::get_data() const {
+    return TTData(move(), value(), eval(), depth(), bound(), is_pv());
+}
+
+void TTEntry::save(uint32_t k32, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t g8) {
+    // このエントリが空か、古い世代の場合は無条件で上書き
+    // BOUND_EXACTか、同じキーで深さが十分に深い場合に上書き
+    if (empty() || relative_age(g8) || b == BOUND_EXACT || k32 != key32 ||
+        d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4) {
+        key32 = k32;
+        move16 = move_to16(m);
+        value16 = int16_t(v);
+        eval16 = int16_t(ev);
+        depth8 = uint8_t(d & 0x3f);
+        genBound8 = g8 | ((b & 0x03) << 5) | (pv ? 0x80 : 0);
+    }
+    // 深さが高くてBOUND_EXACTでないときは、depthを1減らして差別化
+    else if (depth8 + DEPTH_ENTRY_OFFSET >= 5 && b != BOUND_EXACT) {
+        depth8--;
+    }
+}
+
+// TTWriterのinlineメソッド実装
+void TTWriter::write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+    // 単純な書き込み処理：複雑な選択ロジックはprobe()側で実装
+    entry->save(uint32_t(k >> 32), v, pv, b, d, m, ev, generation8);
+}
 
 // グローバル置換表
 extern TranspositionTable TT;

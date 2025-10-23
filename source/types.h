@@ -477,7 +477,14 @@ enum Value : int32_t {
       -int(VALUE_MATE_IN_MAX_PLY), // MAX_PLYで詰まされるときのスコア。
 
   // 千日手による優等局面への突入したときのスコア
+  // ※ これを詰みのスコアの仲間としてしまうと、詰みのスコアをrootからの手数で
+  //    計算しなおすときにおかしくなる。これは評価値の仲間として扱うことにする。
+  //   よって、これは、VALUE_MAX_EVALと同じ値にしておく
   VALUE_SUPERIOR = 28000,
+
+  // 評価関数の返す値の最大値、最小値
+  VALUE_MAX_EVAL = VALUE_SUPERIOR,
+  VALUE_MIN_EVAL = -VALUE_SUPERIOR,
 
   // 評価関数
 };

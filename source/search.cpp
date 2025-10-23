@@ -112,7 +112,7 @@ void Search::search(Position &pos) {
     if (Limits.use_time_management()) {
       timerThread = new std::thread([&] {
         while (Time.elapsed() < endTime && !Stop)
-          std::this_thread::sleep_for(std::chrono::milliseconds(9900));
+          std::this_thread::sleep_for(std::chrono::milliseconds(9990));
         Stop = true;
       });
     }
@@ -301,13 +301,13 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
 
 #ifdef USE_TRANSPOSITION_TABLE
   // 探索順序の最適化：置換表の最善手を優先
-  std::vector<ExtMove> orderedMoves;
-  for (ExtMove move : legalMoves) {
+  std::deque<ExtMove> orderedMoves;
+  for (const ExtMove &move : legalMoves) {
     if (ttHit && move.move == ttd.move) {
       // 置換表の最善手を最初に
-      orderedMoves.insert(orderedMoves.begin(), move);
+      orderedMoves.push_front(move);
     } else {
-      orderedMoves.push_back(move);
+      orderedMoves.emplace_back(move);
     }
   }
 #else
@@ -317,7 +317,7 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
   }
 #endif
 
-  for (ExtMove move : orderedMoves) {
+  for (ExtMove &move : orderedMoves) {
     std::vector<Move> childPv;
 
     pos.do_move(move.move, si); // 局面を1手進める
@@ -344,9 +344,6 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
 
     if(value > alpha) {
       alpha = value;
-      if(depth == 1) {
-        // std::cout << depth << USI::pv(pos, ply_from_root) << " " << pos.moves_from_start(false) << std::endl;
-      }
     }
   }
 
@@ -362,8 +359,8 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
       bound = BOUND_EXACT;
     }
 
-    Move bestMove = bestPv.empty() ? MOVE_NONE : bestPv[0];
-    Value evalValue = Eval::evaluate(pos);
+    const Move &bestMove = bestPv.empty() ? MOVE_NONE : bestPv[0];
+    const Value &evalValue = Eval::evaluate(pos);
 
     ttWriter.write(pos.key(), maxValue, true, bound, depth, bestMove, evalValue, TT.generation());
   }
