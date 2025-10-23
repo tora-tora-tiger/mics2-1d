@@ -143,9 +143,12 @@ void Search::search(Position &pos) {
         pos.do_move(move, si);                    // 局面を1手進める
         std::vector<Move> pv;
         Value value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 0); // 指定深さで探索
-        // rootMoves[i].pvを更新
-        rootMoves[i].pv.assign(1, move);
-        rootMoves[i].pv.insert(rootMoves[i].pv.end(), pv.begin(), pv.end());
+        // PVの更新：探索から得られたPVを尊重（破壊しない）
+        if (!pv.empty()) {
+            rootMoves[i].pv.clear();
+            rootMoves[i].pv.emplace_back(move);
+            rootMoves[i].pv.insert(rootMoves[i].pv.end(), pv.begin(), pv.end());
+        }
         pos.undo_move(move);               
                // 局面を1手戻す
 
@@ -157,6 +160,9 @@ void Search::search(Position &pos) {
           currentBestMove = move;
         }
 
+        // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
+        // 評価値順にrootMovesをソート
+        std::stable_sort(rootMoves.begin(), rootMoves.end());
         std::cout << USI::pv(pos, depth) << std::endl;
       }
       
@@ -167,8 +173,7 @@ void Search::search(Position &pos) {
     }
     /* 探索終了 */
 
-    // // 評価値順にrootMovesをソート
-    // std::stable_sort(rootMoves.begin(), rootMoves.end());
+    std::stable_sort(rootMoves.begin(), rootMoves.end());
 
     // タイマースレッド終了
     Stop = true;

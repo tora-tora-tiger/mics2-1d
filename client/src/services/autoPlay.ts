@@ -109,17 +109,35 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
 };
 
 // debug
+
+const black: AutoPlayColorConfig = {
+  engineName: "latest",
+  displayName: "TT実装2"
+};
+const white: AutoPlayColorConfig = {
+  engineName: "alphabeta-v2-aarch64",
+  // displayName: ""
+};
 console.time('autoPlay');
 autoPlay({
   limitStep: 100,
-  black: {
-    engineName: "alphabeta-v2-aarch64",
-    // displayName: ""
-  },
-  white: {
-    engineName: "latest",
-    displayName: "TT実装1"
-  },
+  black,
+  white,
+}).then(record => {
+  console.timeEnd('autoPlay');
+  const kif = exportKIF(record);
+  const dir = './data/record/';
+
+  fs.mkdirSync(dir, { recursive: true });
+  const filePath = path.join(dir, `record-${Date.now()}.kif`);
+  fs.writeFileSync(filePath, kif);
+  console.log(`Record saved to ${filePath}`);
+})
+// 自動対局を逆向きに実行（白番先手）
+autoPlay({
+  limitStep: 100,
+  black: white,
+  white: black,
 }).then(record => {
   console.timeEnd('autoPlay');
   const kif = exportKIF(record);
