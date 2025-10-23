@@ -409,6 +409,50 @@ static bool aligned(Square sq1, Square sq2, Square sq3 /* is ksq */) {
 // 通常探索時の最大探索深さ
 constexpr int MAX_PLY = 127;
 
+// 探索深さを表現する型
+using Depth = int;
+
+enum : int {
+
+	// The following DEPTH_ constants are used for TT entries and QS movegen stages. In regular search,
+	// TT depth is literal: the search depth (effort) used to make the corresponding TT value.
+	// In qsearch, however, TT entries only store the current QS movegen stage (which should thus compare
+	// lower than any regular search depth).
+	// 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
+	DEPTH_QS_CHECKS     = 0,
+
+	// 静止探索で王手がかかっていないとき。
+	DEPTH_QS_NORMAL     = -1,
+
+	// 静止探索でこれより深い(残り探索深さが少ない)ところではRECAPTURESしか生成しない。
+	DEPTH_QS_RECAPTURES = -5,
+
+
+	// For TT entries where no searching at all was done (whether regular or qsearch) we use
+	// _UNSEARCHED, which should thus compare lower than any QS or regular depth. _ENTRY_OFFSET is used
+	// only for the TT entry occupancy check (see tt.cpp), and should thus be lower than _UNSEARCHED.
+
+	// DEPTH_NONEは探索せずに値を求めたという意味に使う。
+	DEPTH_UNSEARCHED   = -2,
+
+	// TTの下駄履き用(TTEntryが使われているかどうかのチェックにのみ用いる)
+	DEPTH_ENTRY_OFFSET = -3
+};
+
+// --------------------
+//     評価値の性質
+// --------------------
+
+// searchで探索窓を設定するので、この窓の範囲外の値が返ってきた場合、
+// high fail時はこの値は上界(真の値はこれより小さい)、low fail時はこの値は下界(真の値はこれより大きい)
+// である。
+enum Bound {
+	BOUND_NONE,  // 探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけを置換表に格納したいときに用いる。
+	BOUND_UPPER, // 上界(真の評価値はこれより小さい) = 詰みのスコアや、nonPVで評価値があまり信用ならない状態であることを表現する。
+	BOUND_LOWER, // 下界(真の評価値はこれより大きい)
+	BOUND_EXACT = BOUND_UPPER | BOUND_LOWER // 真の評価値と一致している。PV nodeでかつ詰みのスコアでないことを表現する。
+};
+
 // --------------------
 //        評価値
 // --------------------
