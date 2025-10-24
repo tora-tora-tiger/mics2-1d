@@ -207,11 +207,11 @@ void Search::search(Position &pos) {
             if(chmax(currentMaxValue, value)) {
               currentBestMove = move;
             }
-
-            // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
-            // 評価値順にrootMovesをソート
-            std::stable_sort(rootMoves.begin(), rootMoves.begin()+i+1);
           }
+            
+          // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
+          // 評価値順にrootMovesをソート
+          std::stable_sort(rootMoves.begin(), rootMoves.begin()+i+1);
           std::cout << USI::pv(pos, depth) << std::endl;
         }
       }
