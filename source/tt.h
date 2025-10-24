@@ -60,24 +60,26 @@ static inline Move move_from16(uint16_t m16);
 // 置換表エントリに格納するデータ構造体
 // 読み取り専用で、TTEntryから取得したデータを保持する
 struct TTData {
-    Move   move;    // この局面での最善手
-    Value  value;   // この局面での探索結果の評価値
-    Value  eval;    // この局面での静的評価値（評価関数の直接値）
-    Depth  depth;   // この値を得た時の探索深さ
-    Bound  bound;   // 値の性質：上界/下界/正確値
-    bool   is_pv;   // このエントリがPV nodeから得たか
+    Move   move;       // この局面での最善手
+    Value  value;      // この局面での探索結果の評価値
+    Value  eval;       // この局面での静的評価値（評価関数の直接値）
+    Depth  depth;      // この値を得た時の探索深さ
+    Bound  bound;      // 値の性質：上界/下界/正確値
+    bool   is_pv;      // このエントリがPV nodeから得たか
+    uint8_t generation; // このエントリが保存された世代
 
     // デフォルトコンストラクタを禁止（明示的な初期化を強制）
     TTData() = delete;
 
     // コンストラクタ：各値を明示的に設定
-    TTData(Move m, Value v, Value ev, Depth d, Bound b, bool pv) :
+    TTData(Move m, Value v, Value ev, Depth d, Bound b, bool pv, uint8_t g) :
         move(m),      // 最善手
         value(v),    // 探索値
         eval(ev),    // 静的評価値
         depth(d),    // 探索深さ
         bound(b),    // 値の性質
-        is_pv(pv)   // PV nodeフラグ
+        is_pv(pv),   // PV nodeフラグ
+        generation(g) // 世代
     {
     }
 };
@@ -286,7 +288,7 @@ struct TTEntry {
 //
 // 【クラスタサイズの設計思想】
 // ・5五将棋は25升なので通常将棋より局面数が少ない
-// ・ハッシュ衝突の確率も低いため、3エントリで十分(?)
+// ・ハッシュ衝突の確率も低いため、3エントリで十分(？)
 // ・メモリ効率と衝突率のバランスを重視
 //
 // 【エントリの選択戦略】
@@ -295,7 +297,7 @@ struct TTEntry {
 //
 // クラスター（ハッシュ衝突対応のための複数エントリ容器）
 struct Cluster {
-    TTEntry entry[3];  // 3エントリ：5五将棋に最適化されたクラスタサイズ
+    TTEntry entry[5];  // 3エントリ：5五将棋に最適化されたクラスタサイズ
 };
 
 // ■ TranspositionTableクラスの解説
@@ -356,6 +358,8 @@ private:
 
     // 世代カウンター（8で割った余り）
     uint8_t generation8;
+
+    u32 count = 0;
 };
 
 // TranspositionTableのinlineメソッド実装
@@ -399,12 +403,13 @@ int TranspositionTable::hashfull() const {
         return 0;
 
     int count = 0;
+    // 先頭1000エントリーのみを使ったフェルミ推計
     const int sample_size = std::min(1000, (int)clusterCount);
 
     for (int i = 0; i < sample_size; ++i) {
         for (int j = 0; j < 3; ++j) {
-            if (!table[i].entry[j].empty() &&
-                table[i].entry[j].generation() == generation8)
+            // 空でないエントリをすべてカウント（世代に関係なく）
+            if (!table[i].entry[j].empty())
                 count++;
         }
     }
@@ -469,7 +474,7 @@ bool TTEntry::matches(Key k) const {
 }
 
 TTData TTEntry::get_data() const {
-    return TTData(move(), value(), eval(), depth(), bound(), is_pv());
+    return TTData(move(), value(), eval(), depth(), bound(), is_pv(), generation());
 }
 
 void TTEntry::save(uint32_t k32, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t g8) {
@@ -492,6 +497,16 @@ void TTEntry::save(uint32_t k32, Value v, bool pv, Bound b, Depth d, Move m, Val
 
 // TTWriterのinlineメソッド実装
 void TTWriter::write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+    // debug
+    // std::cout << "TT書き込み key=" << std::hex << k << std::dec
+    //           << " value=" << v
+    //           << " eval=" << ev
+    //           << " depth=" << d
+    //           << " bound=" << int(b)
+    //           << " pv=" << pv
+    //           << " move=" << m
+    //           << " generation=" << int(generation8)
+    //           << std::endl;
     // 単純な書き込み処理：複雑な選択ロジックはprobe()側で実装
     entry->save(uint32_t(k >> 32), v, pv, b, d, m, ev, generation8);
 }

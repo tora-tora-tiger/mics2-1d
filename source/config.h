@@ -72,7 +72,7 @@
 #define USE_TRANSPOSITION_TABLE
 
 // 置換表のデフォルトサイズ[MB]
-#define DEFAULT_TT_SIZE 16
+#define DEFAULT_TT_SIZE 64
 
 // --- assertion tools
 

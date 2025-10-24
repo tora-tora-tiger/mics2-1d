@@ -162,6 +162,9 @@ SOURCES  = \
 	evaluate.cpp        \
 	search.cpp          \
 	tt.cpp              \
+	mate.cpp            \
+	parallel_debug.cpp  \
+	thread_pool.cpp     \
 	extra/rp_cmd.cpp    \
 	extra/user_test.cpp \
 

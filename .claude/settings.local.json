@@ -4,7 +4,8 @@
       "Bash(gemini:*)",
       "Bash(pnpm add:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []

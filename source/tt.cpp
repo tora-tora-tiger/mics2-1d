@@ -62,7 +62,7 @@ TranspositionTable::~TranspositionTable() {
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) const {
     // テーブルが未確保の場合は未ヒットで返す
     if (!table) {
-        return std::make_tuple(false, TTData(MOVE_NONE, VALUE_ZERO, VALUE_ZERO, DEPTH_ENTRY_OFFSET, BOUND_NONE, false), TTWriter(nullptr));
+        return std::make_tuple(false, TTData(MOVE_NONE, VALUE_ZERO, VALUE_ZERO, DEPTH_ENTRY_OFFSET, BOUND_NONE, false, 0), TTWriter(nullptr));
     }
 
     // ハッシュキーの上位32bitで比較対象とする
@@ -103,5 +103,5 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
     }
 
     // 未ヒット：ダミーデータと選択したエントリの書き込み権を返す
-    return std::make_tuple(false, TTData(MOVE_NONE, VALUE_ZERO, VALUE_ZERO, DEPTH_ENTRY_OFFSET, BOUND_NONE, false), TTWriter(replace));
+    return std::make_tuple(false, TTData(MOVE_NONE, VALUE_ZERO, VALUE_ZERO, DEPTH_ENTRY_OFFSET, BOUND_NONE, false, 0), TTWriter(replace));
 }
