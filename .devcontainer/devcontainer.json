@@ -36,13 +36,14 @@
   },
   "forwardPorts": [8080],
   "mounts": [
-    "source=${env:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+    "source=${env:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
+    "source=${env:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached"
   ],
   "remoteEnv": {
     "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",
     "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic"
   },
-  "postCreateCommand": "gcc --version && python3 --version && ln -sf \"$SSH_AUTH_SOCK\" /tmp/ssh-agent.sock",
+  "postCreateCommand": "gcc --version && python3 --version && ln -sf \"$SSH_AUTH_SOCK\" /tmp/ssh-agent.sock && printenv OPENAI_API_KEY | codex login --with-api-key || echo 'OPENAI_API_KEY not found, skipping codex login'",
   "runArgs": [
     "--env-file",
     ".devcontainer/.env"

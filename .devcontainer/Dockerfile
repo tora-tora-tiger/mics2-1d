@@ -58,6 +58,9 @@ RUN python3 -m pip install --upgrade pip
 #     pylint \
 #     autopep8
 
+# Codex CLI インストール
+RUN npm i -g @openai/codex
+
 # ユーザーの作成
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
