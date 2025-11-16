@@ -192,9 +192,10 @@ void Search::search(Position &pos) {
           Value value = VALUE_NONE;
           std::vector<Move> pv;
           // 千日手(5五将棋ルール)は種類ごとの評価値で返す
+          // pos.do_move()しているため、評価値の符号に注意
           const RepetitionState &repetitionState = pos.is_repetition(16);
           if (repetitionState != REPETITION_NONE) {
-            value = draw_value(repetitionState, pos.side_to_move());
+            value = -draw_value(repetitionState, pos.side_to_move());
             pos.undo_move(move);
           } else {
             // 1手進めた状態で探索を行っているため、ply_from_rootは1
@@ -258,6 +259,14 @@ END:;
 
 // アルファ・ベータ法(alpha-beta method)
 Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha, Value beta, int depth, int ply_from_root) {
+  // 千日手(5五将棋ルール)は種類ごとの評価値で返す
+  // pos.do_move()しているため、評価値の符号に注意
+  const RepetitionState &repetitionState = pos.is_repetition(16);
+  if (repetitionState != REPETITION_NONE) {
+    pv.clear();
+    return draw_value(repetitionState, pos.side_to_move());
+  }
+
   // 探索ノード数をインクリメント
   Nodes++;
 
@@ -356,16 +365,10 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     std::vector<Move> childPv;
 
     pos.do_move(move.move, si); // 局面を1手進める
-    Value value = VALUE_NONE;
-    // 千日手(5五将棋ルール)は種類ごとの評価値で返す
-    const RepetitionState &repetitionState = pos.is_repetition(16);
-    if (repetitionState != REPETITION_NONE) {
-      pv.clear();
-      value = draw_value(repetitionState, pos.side_to_move());
-    } else {
-      // [TODO] ExtMoveにはvalueがあるけどそれを使うべきかを検討(そのまま置換するとエラーが出る)
-      value = (-1) * alphabeta_search(pos, childPv, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
-    }
+    
+    // [TODO] ExtMoveにはvalueがあるけどそれを使うべきかを検討(そのまま置換するとエラーが出る)
+    Value value = (-1) * alphabeta_search(pos, childPv, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
+    
     pos.undo_move(move.move);
     if(Stop) break;
 
