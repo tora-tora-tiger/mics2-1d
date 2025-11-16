@@ -197,7 +197,8 @@ void Search::search(Position &pos) {
             continue;
           }
           std::vector<Move> pv;
-          value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 0); // 指定深さで探索
+          // 1手進めた状態で探索を行っているため、ply_from_rootは1
+          value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 1); // 指定深さで探索
           if(!Stop) {
             // PVの更新：探索から得られたPVを尊重（破壊しない）
             if (!pv.empty()) {
