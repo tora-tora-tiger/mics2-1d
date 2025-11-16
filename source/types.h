@@ -489,11 +489,14 @@ enum Value : int32_t {
   // 評価関数
 };
 
+// 評価値が VALUE_NONE か判定
+inline constexpr bool is_valid_value(Value v) { return v != VALUE_NONE && v != -VALUE_NONE; }
+
 // ply手で詰ませるときのスコア
-constexpr Value mate_in(int ply) { return (Value)(VALUE_MATE - ply); }
+inline constexpr Value mate_in(int ply) { return (Value)(VALUE_MATE - ply); }
 
 // ply手で詰まされるときのスコア
-constexpr Value mated_in(int ply) { return (Value)(-VALUE_MATE + ply); }
+inline constexpr Value mated_in(int ply) { return (Value)(-VALUE_MATE + ply); }
 
 // --------------------
 //        駒

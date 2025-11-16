@@ -210,17 +210,17 @@ void Search::search(Position &pos) {
             rootMoves[i].score = value;
             rootMoves[i].selDepth = depth; // 選択深さを設定
             
-            if(chmax(currentMaxValue, value)) {
-              currentBestMove = move;
-            }
           }
           // 局面を1手戻す
           pos.undo_move(move);
-            
-          // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
-          // 評価値順にrootMovesをソート
-          std::stable_sort(rootMoves.begin(), rootMoves.begin()+i+1);
-          std::cout << USI::pv(pos, depth) << std::endl;
+          
+          if(is_valid_value(value) && chmax(currentMaxValue, value)) {
+            currentBestMove = move;
+            // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
+            // 評価値順にrootMovesをソート
+            std::stable_sort(rootMoves.begin(), rootMoves.begin()+i+1);
+            std::cout << USI::pv(pos, depth) << std::endl;
+          }
         }
       }
       
@@ -270,7 +270,7 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
   // 探索打ち切り
   if (Stop) {
     pv.clear();
-    return Eval::evaluate(pos);
+    return VALUE_NONE;
   }
 
 #ifdef USE_TRANSPOSITION_TABLE
@@ -367,7 +367,11 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     Value value = (-1) * alphabeta_search(pos, childPv, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
     
     pos.undo_move(move.move);
-    if(Stop) break;
+
+    if(!is_valid_value(value)) {
+      // 探索打ち切られ
+      break;
+    }
 
     // アルファ・ベータカット
     if(value >= beta) {
@@ -391,6 +395,8 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     if(value > alpha) {
       alpha = value;
     }
+
+    if(Stop) break;
   }
 
 #ifdef USE_TRANSPOSITION_TABLE
@@ -413,6 +419,10 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
 #endif
 
   pv = bestPv;
+  if(maxValue == -VALUE_INFINITE) {
+    // 探索打ち切られている
+    return VALUE_NONE;
+  }
   return maxValue;
 }
 // ParallelSearchManagerの実装
