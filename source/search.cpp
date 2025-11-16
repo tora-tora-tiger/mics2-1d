@@ -153,7 +153,8 @@ void Search::search(Position &pos) {
     int maxDepth = Limits.depth ? Limits.depth : 20; // goコマンドで指定された深さ、なければ20
 
     // 反復深化探索
-    for (int depth = 1; depth <= maxDepth && !Stop; ++depth) {
+    int depth;
+    for (depth = 1; depth <= maxDepth && !Stop; ++depth) {
       // ノード数制限のチェック
       if (Limits.nodes && Nodes >= (uint64_t)Limits.nodes) {
         Stop = true;
@@ -198,7 +199,8 @@ void Search::search(Position &pos) {
             // 1手進めた状態で探索を行っているため、ply_from_rootは1
             value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 1); // 指定深さで探索
           }
-          if(!Stop) {
+          const bool valid = is_valid_value(value);
+          if(valid) {
             // PVの更新：探索から得られたPVを尊重（破壊しない）
             rootMoves[i].pv.clear();
             rootMoves[i].pv.emplace_back(move);
@@ -214,13 +216,13 @@ void Search::search(Position &pos) {
           // 局面を1手戻す
           pos.undo_move(move);
           
-          if(is_valid_value(value) && chmax(currentMaxValue, value)) {
+          if(valid && chmax(currentMaxValue, value)) {
             currentBestMove = move;
+          }
             // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
             // 評価値順にrootMovesをソート
             std::stable_sort(rootMoves.begin(), rootMoves.begin()+i+1);
             std::cout << USI::pv(pos, depth) << std::endl;
-          }
         }
       }
       
@@ -238,6 +240,7 @@ void Search::search(Position &pos) {
 
     // 最終ソートとbestMove更新
     std::stable_sort(rootMoves.begin(), rootMoves.end());
+    std::cout << USI::pv(pos, depth) << std::endl;
     bestMove = rootMoves[0].pv[0];  // ソート済みの先頭が最善手
 
     // タイマースレッド終了
