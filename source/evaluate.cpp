@@ -127,7 +127,7 @@ int HavingPieceValue[PIECE_NB] = {
 
 Value evaluate(const Position &pos) {
   Value score = VALUE_ZERO;
-  const Bitboard &oc = pos.pieces();
+  const Bitboard oc = pos.pieces();
   
   // 25ループ
   for (const Square &sq : SQ) {
