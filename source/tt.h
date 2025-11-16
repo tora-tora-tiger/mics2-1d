@@ -37,6 +37,9 @@ static constexpr int GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
 static inline uint16_t move_to16(Move m);
 static inline Move move_from16(uint16_t m16);
 
+// 置換表エントリ数
+#define TT_ENTRY_NB 5
+
 // ■ 置換表（Transposition Table）の解説
 //
 // 置換表とは、一度探索した局面の結果を保存しておき、
@@ -297,7 +300,7 @@ struct TTEntry {
 //
 // クラスター（ハッシュ衝突対応のための複数エントリ容器）
 struct Cluster {
-    TTEntry entry[5];  // 3エントリ：5五将棋に最適化されたクラスタサイズ
+    TTEntry entry[TT_ENTRY_NB];  // 3エントリ：5五将棋に最適化されたクラスタサイズ
 };
 
 // ■ TranspositionTableクラスの解説
@@ -407,14 +410,14 @@ int TranspositionTable::hashfull() const {
     const int sample_size = std::min(1000, (int)clusterCount);
 
     for (int i = 0; i < sample_size; ++i) {
-        for (int j = 0; j < 3; ++j) {
+        for (int j = 0; j < TT_ENTRY_NB; ++j) {
             // 空でないエントリをすべてカウント（世代に関係なく）
             if (!table[i].entry[j].empty())
                 count++;
         }
     }
 
-    return count * 1000 / (sample_size * 3);
+    return count * 1000 / (sample_size * TT_ENTRY_NB);
 }
 
 void TranspositionTable::new_search() {

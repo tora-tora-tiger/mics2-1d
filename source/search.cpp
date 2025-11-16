@@ -377,7 +377,9 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
       pv.clear();
       pv.emplace_back(move.move);
       pv.insert(pv.end(), childPv.begin(), childPv.end());
-      return value;
+      bestPv = pv;
+      maxValue = value;
+      break;
     }
 
     if(value > maxValue) {
