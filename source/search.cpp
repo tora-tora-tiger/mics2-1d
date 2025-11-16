@@ -196,16 +196,15 @@ void Search::search(Position &pos) {
           const RepetitionState &repetitionState = pos.is_repetition(16);
           if (repetitionState != REPETITION_NONE) {
             value = -draw_value(repetitionState, pos.side_to_move());
-            pos.undo_move(move);
           } else {
             // 1手進めた状態で探索を行っているため、ply_from_rootは1
             value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 1); // 指定深さで探索
           }
           if(!Stop) {
             // PVの更新：探索から得られたPVを尊重（破壊しない）
+            rootMoves[i].pv.clear();
+            rootMoves[i].pv.emplace_back(move);
             if (!pv.empty()) {
-                rootMoves[i].pv.clear();
-                rootMoves[i].pv.emplace_back(move);
                 rootMoves[i].pv.insert(rootMoves[i].pv.end(), pv.begin(), pv.end());
             }
             
