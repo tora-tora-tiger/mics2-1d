@@ -219,10 +219,10 @@ void Search::search(Position &pos) {
           if(valid && chmax(currentMaxValue, value)) {
             currentBestMove = move;
           }
-            // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
-            // 評価値順にrootMovesをソート
-            std::stable_sort(rootMoves.begin(), rootMoves.begin()+i+1);
-            std::cout << USI::pv(pos, depth) << std::endl;
+          // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
+          // 評価値順にrootMovesをソート
+          std::stable_sort(rootMoves.begin(), rootMoves.begin()+i+1);
+          std::cout << USI::pv(pos, depth) << std::endl;
         }
       }
       
@@ -289,11 +289,13 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
   ttWriter = std::get<2>(tt_result);
 
   // 置換表にヒットした場合
+  Move ttMove = MOVE_NONE;
   if (ttHit) {
+    ttMove = pos.reconstruct_move(ttd.move);
     // デバッグ：悪手検出用
     if (depth >= 8 && ttd.bound == BOUND_EXACT && ttd.value < -1000) {
       std::cout << "DEBUG: 置換表から悪手を検出 depth=" << depth
-                << " move=" << move_from16(ttd.move)
+                << " move=" << ttMove
                 << " value=" << ttd.value
                 << " gen_diff=" << ((TT.generation() - ttd.generation) & 0x7f)
                 << std::endl;
@@ -304,21 +306,24 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     uint8_t entry_generation = ttd.generation;
     uint8_t gen_diff = (current_generation - entry_generation) & 0x7f;
 
-    if (gen_diff <= 1) {  // 現在または前の世代のみ使用
+    int storedDepth = (int)ttd.depth;
+    int requiredDepth = gen_diff == 0 ? depth : (depth - 1);
+
+    if (gen_diff <= 1 && storedDepth >= requiredDepth) {  // 現在または前の世代のみ使用
       if (ttd.bound == BOUND_EXACT) {
-        pv.assign(1, move_from16(ttd.move));
+        pv.assign(1, ttMove);
         return ttd.value;
       } else if (ttd.bound == BOUND_LOWER && ttd.value >= beta) {
-        pv.assign(1, move_from16(ttd.move));
+        pv.assign(1, ttMove);
         return ttd.value;
       } else if (ttd.bound == BOUND_UPPER && ttd.value <= alpha) {
         return ttd.value;
       }
     }
     // 深さチェックを少し緩和：深さが足りなくても、1手浅いなら許容
-    else if (ttd.depth >= depth - 1) {
+    else if (storedDepth >= depth - 1) {
       if (ttd.bound == BOUND_EXACT) {
-        pv.assign(1, move_from16(ttd.move));
+        pv.assign(1, ttMove);
         return ttd.value;
       }
     }
@@ -346,7 +351,7 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
   // 探索順序の最適化：置換表の最善手を優先
   std::deque<ExtMove> orderedMoves;
   for (const ExtMove &move : legalMoves) {
-    if (ttHit && move.move == ttd.move) {
+    if (ttHit && move.move == ttMove) {
       // 置換表の最善手を最初に
       orderedMoves.push_front(move);
     } else {
