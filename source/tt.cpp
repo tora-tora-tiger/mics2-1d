@@ -83,7 +83,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
     tte = first_entry(key);
     TTEntry* replace = tte;
 
-    for (int i = 0; i < 3; ++i, ++tte) {
+    for (int i = 0; i < TT_ENTRY_NB; ++i, ++tte) {
         // 1. 空のエントリを最優先
         if (tte->empty()) {
             replace = tte;

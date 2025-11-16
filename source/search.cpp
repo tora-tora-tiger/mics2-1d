@@ -150,9 +150,7 @@ void Search::search(Position &pos) {
     Value beta = VALUE_INFINITE;
     
     StateInfo si;
-    // debug
-    int maxDepth = 50;
-    // int maxDepth = Limits.depth ? Limits.depth : 20; // goコマンドで指定された深さ、なければ20
+    int maxDepth = Limits.depth ? Limits.depth : 20; // goコマンドで指定された深さ、なければ20
 
     // 反復深化探索
     for (int depth = 1; depth <= maxDepth && !Stop; ++depth) {
