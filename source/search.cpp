@@ -197,17 +197,17 @@ void Search::search(Position &pos) {
                 rootMoves[i].pv.emplace_back(move);
                 rootMoves[i].pv.insert(rootMoves[i].pv.end(), pv.begin(), pv.end());
             }
-            // 局面を1手戻す
-            pos.undo_move(move);
-
+            
             // rootMovesのスコアを更新
             rootMoves[i].score = value;
             rootMoves[i].selDepth = depth; // 選択深さを設定
-
+            
             if(chmax(currentMaxValue, value)) {
               currentBestMove = move;
             }
           }
+          // 局面を1手戻す
+          pos.undo_move(move);
             
           // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
           // 評価値順にrootMovesをソート
@@ -403,6 +403,7 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
   }
 #endif
 
+  const int alphaOrig = alpha;
   for (ExtMove &move : orderedMoves) {
     std::vector<Move> childPv;
 
@@ -410,6 +411,7 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     // [TODO] ExtMoveにはvalueがあるけどそれを使うべきかを検討(そのまま置換するとエラーが出る)
     Value value = (-1) * alphabeta_search(pos, childPv, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
     pos.undo_move(move.move);
+    if(Stop) break;
 
     // アルファ・ベータカット
     if(value >= beta) {
@@ -439,7 +441,7 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     Bound bound;
     if (maxValue >= beta) {
       bound = BOUND_LOWER;
-    } else if (maxValue <= alpha) {
+    } else if (maxValue <= alphaOrig){
       bound = BOUND_UPPER;
     } else {
       bound = BOUND_EXACT;
