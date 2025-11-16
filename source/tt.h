@@ -481,9 +481,23 @@ TTData TTEntry::get_data() const {
 }
 
 void TTEntry::save(uint32_t k32, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t g8) {
-    // このエントリが空か、古い世代の場合は無条件で上書き
-    // BOUND_EXACTか、同じキーで深さが十分に深い場合に上書き
-    if (empty() || relative_age(g8) || b == BOUND_EXACT || k32 != key32 ||
+    // relative_age(g8)は「このエントリが現在世代から何世代ずれているか」を返す。
+    // 0   : 現在世代 (直近に更新された情報)
+    // 1   : 1世代前
+    // 2以上 : それより古い(=数手前)の情報
+    const uint8_t &age = relative_age(g8);
+
+    // 2世代以上古い情報は価値が低いので優先的に上書きする
+    const bool aged_out = age >= 2;
+
+    // 1世代前の情報でも、保持している深さが浅いなら新しい結果で上書きする。
+    // (深さ : 内部保存値 depth8 には DEPTH_ENTRY_OFFSET が常に足されているので、
+    //   それを取り除いた実効深さ同士で比較する)
+    const bool shallow_old =
+        (age == 1) && (d - DEPTH_ENTRY_OFFSET >= depth8 - DEPTH_ENTRY_OFFSET + 2);
+
+    // このエントリが空/古い/浅い、もしくはEXACT・深さ十分な場合は上書き
+    if (empty() || aged_out || shallow_old || b == BOUND_EXACT || k32 != key32 ||
         d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4) {
         key32 = k32;
         move16 = move_to16(m);
@@ -492,8 +506,9 @@ void TTEntry::save(uint32_t k32, Value v, bool pv, Bound b, Depth d, Move m, Val
         depth8 = uint8_t(d & 0x3f);
         genBound8 = g8 | ((b & 0x03) << 5) | (pv ? 0x80 : 0);
     }
-    // 深さが高くてBOUND_EXACTでないときは、depthを1減らして差別化
-    else if (depth8 + DEPTH_ENTRY_OFFSET >= 5 && b != BOUND_EXACT) {
+    // 現世代ではないエントリについては、十分な深さがある場合でも軽く劣化させ
+    // (depth8--) 次の探索で上書きされやすくする。BOUND_EXACTは尊重する。
+    else if (age > 0 && depth8 + DEPTH_ENTRY_OFFSET >= 5 && b != BOUND_EXACT) {
         depth8--;
     }
 }
