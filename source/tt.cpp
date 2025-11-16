@@ -70,7 +70,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
     uint32_t key32 = uint32_t(key >> 32);
 
     // クラスタ内の3エントリを線形検索
-    for (int i = 0; i < 3; ++i, ++tte) {
+    for (int i = 0; i < TT_ENTRY_NB; ++i, ++tte) {
         // ハッシュキーが一致し、かつエントリが使用中ならヒット
         if (tte->key32 == key32 && !tte->empty()) {
             // ヒットした場合：データコピーと書き込み用オブジェクトを返す
