@@ -116,6 +116,7 @@ void Search::search(Position &pos) {
     goto END;
   }
 
+
   /* ここから探索部を記述する */
   {
 #ifdef USE_TRANSPOSITION_TABLE
@@ -188,8 +189,15 @@ void Search::search(Position &pos) {
         for (size_t i = 0; i < rootMoves.size(); ++i) {
           Move move = rootMoves[i].pv[0];           // 合法手のi番目
           pos.do_move(move, si);                    // 局面を1手進める
+          Value value = VALUE_NONE;
+          // 千日手(5五将棋ルール)は種類ごとの評価値で返す
+          const RepetitionState &repetitionState = pos.is_repetition(16);
+          if (repetitionState != REPETITION_NONE) {
+            value = draw_value(repetitionState, pos.side_to_move());
+            continue;
+          }
           std::vector<Move> pv;
-          Value value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 0); // 指定深さで探索
+          value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 0); // 指定深さで探索
           if(!Stop) {
             // PVの更新：探索から得られたPVを尊重（破壊しない）
             if (!pv.empty()) {
@@ -275,6 +283,13 @@ Value Search::negamax_search(Position &pos, std::vector<Move> &pv, int depth, in
     // 合法手が存在しない -> 詰み
     pv.clear();
     return mated_in(ply_from_root);
+  }
+
+  // 千日手(5五将棋ルール)は種類ごとの評価値で返す
+  const RepetitionState repetitionState = pos.is_repetition(16);
+  if (repetitionState != REPETITION_NONE) {
+    pv.clear();
+    return draw_value(repetitionState, pos.side_to_move());
   }
 
   for (ExtMove move : legalMoves) {
@@ -373,18 +388,6 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     return mated_in(ply_from_root);
   }
   
-  /**
-   * 千日手判定
-   * 先手負け
-   * 行ったり来たりするにしても16手かかる
-   * 後手が番のときは次の先手が詰みという処理をする
-   * [TODO] 千日手用の値があると思うから置き換える
-   */
-  if(pos.is_repetition(16)) {
-    pv.clear();
-    return mated_in(ply_from_root + (pos.side_to_move() == WHITE));
-  }
-
 #ifdef USE_TRANSPOSITION_TABLE
   // 探索順序の最適化：置換表の最善手を優先
   std::deque<ExtMove> orderedMoves;
@@ -408,6 +411,12 @@ Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha
     std::vector<Move> childPv;
 
     pos.do_move(move.move, si); // 局面を1手進める
+    // 千日手(5五将棋ルール)は種類ごとの評価値で返す
+    const RepetitionState &repetitionState = pos.is_repetition(16);
+    if (repetitionState != REPETITION_NONE) {
+      pv.clear();
+      return draw_value(repetitionState, pos.side_to_move());
+    }
     // [TODO] ExtMoveにはvalueがあるけどそれを使うべきかを検討(そのまま置換するとエラーが出る)
     Value value = (-1) * alphabeta_search(pos, childPv, -beta, -alpha, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
     pos.undo_move(move.move);
