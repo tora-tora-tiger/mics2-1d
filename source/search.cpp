@@ -255,63 +255,6 @@ END:;
   std::cout << "bestmove " << bestMove << std::endl;
 }
 
-// ネガマックス法(nega-max method)
-Value Search::negamax_search(Position &pos, std::vector<Move> &pv, int depth, int ply_from_root) {
-  // 探索ノード数をインクリメント
-  Nodes++;
-
-  // 探索打ち切り
-  if (Stop) {
-    pv.clear();
-    return Eval::evaluate(pos);
-  }
-
-  // 探索深さに達したら評価関数を呼び出して終了
-  if (depth == 0) {
-    pv.clear();
-    return Eval::evaluate(pos);
-  }
-
-  Value maxValue = -VALUE_INFINITE; // 初期値はマイナス∞
-  // 初期探索範囲は[-∞, +∞]
-  Value alpha = -VALUE_INFINITE;
-  Value beta = VALUE_INFINITE;
-  std::vector<Move> bestPv;
-
-  StateInfo si;
-  const auto legalMoves = MoveList<LEGAL_ALL>(pos);
-  if(legalMoves.size() == 0) {
-    // 合法手が存在しない -> 詰み
-    pv.clear();
-    return mated_in(ply_from_root);
-  }
-
-  // 千日手(5五将棋ルール)は種類ごとの評価値で返す
-  const RepetitionState repetitionState = pos.is_repetition(16);
-  if (repetitionState != REPETITION_NONE) {
-    pv.clear();
-    return draw_value(repetitionState, pos.side_to_move());
-  }
-
-  for (ExtMove move : legalMoves) {
-    std::vector<Move> childPv;
-    pos.do_move(move.move, si); // 局面を1手進める
-    Value value = (-1) * alphabeta_search(pos, childPv, alpha, beta, depth - 1, ply_from_root + 1); // 再帰的に呼び出し
-    pos.undo_move(move.move);
-
-    if (value > maxValue) {
-      maxValue = value;
-      // 最適なPVを構築
-      bestPv.clear();
-      bestPv.emplace_back(move.move);
-      bestPv.insert(bestPv.end(), childPv.begin(), childPv.end());
-    }
-  }
-
-  pv = bestPv;
-  return maxValue;
-}
-
 // アルファ・ベータ法(alpha-beta method)
 Value Search::alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha, Value beta, int depth, int ply_from_root) {
   // 探索ノード数をインクリメント
