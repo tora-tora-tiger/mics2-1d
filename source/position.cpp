@@ -969,6 +969,27 @@ RepetitionState Position::is_repetition(int repPly /* = 16 */) const {
   return REPETITION_NONE;
 }
 
+Move Position::reconstruct_move(uint16_t move16) const {
+  Move m = move_from16(move16);
+  if (m == MOVE_NONE)
+    return MOVE_NONE;
+
+  if (is_drop(m)) {
+    Piece pt = move_dropped_piece(m);
+    Piece dropPiece = make_piece(sideToMove, pt);
+    return Move(uint32_t(m) | (uint32_t(dropPiece) << 16));
+  }
+
+  Square from = move_from(m);
+  Piece pieceBefore = piece_on(from);
+
+  if (pieceBefore == NO_PIECE || color_of(pieceBefore) != sideToMove)
+    return MOVE_NONE;
+
+  Piece pieceAfter = is_promote(m) ? Piece(pieceBefore + PIECE_PROMOTE) : pieceBefore;
+  return Move(uint32_t(m) | (uint32_t(pieceAfter) << 16));
+}
+
 bool Position::pos_is_ok() const {
 #if 1
   // 1) 盤上の駒と手駒を合わせて12駒あるか。

@@ -20,7 +20,8 @@
           "*.cpp": "cpp",
           "*.h": "c",
           "*.hpp": "cpp"
-        }
+        },
+        "latex-workshop.latex.recipe.default": "latexmk (latexmkrc)"
       },
       "extensions": [
         "ms-vscode.cpptools",
@@ -30,13 +31,16 @@
         "Anthropic.claude-code",
         "MermaidChart.vscode-mermaid-chart",
         "oderwat.indent-rainbow",
-        "mhutchie.git-graph"
+        "mhutchie.git-graph",
+        "James-Yu.latex-workshop",
+        "openai.chatgpt"
       ]
     }
   },
   "forwardPorts": [8080],
   "mounts": [
-    "source=${env:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+    "source=${env:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached",
+    "source=${env:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached"
   ],
   "remoteEnv": {
     "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock",

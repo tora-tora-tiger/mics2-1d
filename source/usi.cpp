@@ -2,6 +2,7 @@
 #include "evaluate.h"
 #include "misc.h"
 #include "search.h"
+#include "tt.h"
 
 
 #include <queue>
@@ -255,6 +256,8 @@ std::string USI::pv(const Position &pos, int depth) {
        << nodes_searched * 1000 / elapsed;
 
     ss << " time " << elapsed;
+
+    ss << " hashfull " << TT.hashfull() ;
     ss << " pv " << USI::move(rootMoves[0].pv[0]);
 
     // PVの他の手も出力（もしあれば）

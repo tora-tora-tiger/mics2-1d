@@ -109,24 +109,42 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
 };
 
 // debug
-console.time('autoPlay');
-autoPlay({
-  limitStep: 100,
-  black: {
-    engineName: "latest",
-    displayName: "評価関数を作ってみよう7attackers-inline"
-  },
-  white: {
-    engineName: "alphabeta-v2-aarch64",
-    // displayName: ""
-  },
-}).then(record => {
-  console.timeEnd('autoPlay');
-  const kif = exportKIF(record);
-  const dir = './data/record/';
 
+const black: AutoPlayColorConfig = {
+  engineName: "latest",
+  // displayName: "~~並列2~~ハッシュ"
+};
+const white: AutoPlayColorConfig = {
+  // engineName: "latest",
+  // displayName: "~~並列2~~ハッシュ"
+  engineName: "alphabeta-v2-aarch64",
+  // displayName: ""
+};
+console.time('autoPlay');
+Promise.all([
+  autoPlay({
+    limitStep: 100,
+    black,
+    white,
+  }),
+  // 自動対局を逆向きに実行（白番先手）
+  // autoPlay({
+  //   limitStep: 100,
+  //   black: white,
+  //   white: black,
+  // }),
+]).then(records => {
+  console.timeEnd('autoPlay');
+  const dir = './data/record/';
   fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, `record-${Date.now()}.kif`);
-  fs.writeFileSync(filePath, kif);
-  console.log(`Record saved to ${filePath}`);
-})
+
+  records.forEach((record, i) => {
+    const kif = exportKIF(record);
+    const filePath = path.join(dir, `record-${Date.now()}-${i}.kif`);
+    fs.writeFileSync(filePath, kif);
+    console.log(`Record saved to ${filePath}`);
+  });
+}).catch(error => {
+    console.error("An error occurred during auto play:", error);
+    console.timeEnd('autoPlay');
+});

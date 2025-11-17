@@ -1,3 +1,6 @@
 [submodule "client/src/tsshogi"]
 	path = client/src/tsshogi
 	url = git@github.com:tora-tora-tiger/tsshogi.git
+[submodule "report"]
+	path = report
+	url = ./report/

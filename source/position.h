@@ -149,6 +149,9 @@ public:
   // rep_ply : 遡る手数。デフォルトでは16手。あまり大きくすると速度低下を招く。
   RepetitionState is_repetition(int rep_ply = 16) const;
 
+  // 置換表に保存された16bitの指し手を現在局面におけるMoveへ復元する
+  Move reconstruct_move(uint16_t move16) const;
+
   // --- Bitboard
 
   // 先手か後手か、いずれかの駒がある場所が1であるBitboardが返る。

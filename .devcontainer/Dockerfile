@@ -58,6 +58,38 @@ RUN python3 -m pip install --upgrade pip
 #     pylint \
 #     autopep8
 
+# Codex CLI インストール
+RUN npm i -g @openai/codex
+
+# --- ここから TeX Live のインストールを追加 ---
+ARG TEXLIVE_MIRROR=https://tug.ctan.org/systems/texlive/tlnet
+ENV PATH=/usr/local/texlive/bin:$PATH
+
+# 作業ディレクトリを用意し、プロファイルをコピーして TeX Live をインストール
+WORKDIR /texlive-install
+COPY .devcontainer/texlive.profile ./texlive.profile
+
+RUN wget ${TEXLIVE_MIRROR}/install-tl-unx.tar.gz \
+    && tar -xf install-tl-unx.tar.gz --strip-components 1 \
+    && ./install-tl -profile texlive.profile --location ${TEXLIVE_MIRROR} \
+    && ln -sf /usr/local/texlive/*/bin/* /usr/local/texlive/bin \
+    && rm -rf /texlive-install/install-tl* /texlive-install/*
+
+# latexmk のインストール
+RUN /usr/local/texlive/bin/tlmgr install latexmk
+
+# Ghostscript と Gnuplot のインストール（非対話）
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends ghostscript gnuplot \
+    && rm -rf /var/lib/apt/lists/*
+
+# gnuplot-lua-tikz 用のスタイルを生成して ls を更新
+RUN gnuplot -e 'set term tikz createstyle' || true \
+&& mktexlsr || true
+
+WORKDIR /
+# --- TeX Live インストールここまで ---
+        
 # ユーザーの作成
 RUN groupadd --gid $USER_GID $USERNAME \
     && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \

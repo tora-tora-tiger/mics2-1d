@@ -3,7 +3,11 @@
 
 #include "misc.h"
 #include "position.h"
+#include "tt.h"
+#include "mate.h"
+#include "thread_pool.h"
 #include <vector>
+#include <memory>
 
 
 namespace Search {
@@ -40,10 +44,10 @@ typedef std::vector<RootMove> RootMoves;
 extern RootMoves rootMoves;
 
 // 今回のgoコマンドでの探索ノード数。
-extern uint64_t Nodes;
+extern std::atomic<uint64_t> Nodes;
 
 // 探索中にこれがtrueになったら探索を即座に終了すること。
-extern bool Stop;
+extern std::atomic<bool> Stop;
 
 // goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
 struct LimitsType {
@@ -94,9 +98,105 @@ void start_thinking(const Position &rootPos, StateListPtr &states,
 
 // 探索本体
 void search(Position &rootPos);
-Value negamax_search(::Position &pos, std::vector<Move> &pv, int depth, int ply_from_root);
 Value alphabeta_search(Position &pos, std::vector<Move> &pv, Value alpha, Value beta, int depth,
                        int ply_from_root);
+
+// 並列探索管理
+class ParallelSearchManager;
+
+class SearchTaskManager {
+private:
+    std::unique_ptr<Threading::ThreadPool> thread_pool;
+    std::atomic<bool> search_stopped{false};
+
+public:
+    SearchTaskManager() = default;
+    ~SearchTaskManager() = default;
+
+    // スレッドプールの初期化
+    void initialize(size_t num_threads = std::thread::hardware_concurrency());
+
+    // 探索タスクの実行
+    template<class F>
+    void run_search_task(const std::string& task_type, F&& f);
+
+    // 全ての探索タスクを停止
+    void stop_all_searches();
+
+    // 探索停止フラグの管理
+    void set_search_stopped(bool stopped) { search_stopped = stopped; }
+    bool is_search_stopped() const { return search_stopped; }
+
+    // アクティブなスレッド数を取得
+    size_t get_active_threads() const {
+        return thread_pool ? thread_pool->size() : 0;
+    }
+
+    // ThreadPoolへのアクセス
+    Threading::ThreadPool* get_thread_pool() const {
+        return thread_pool.get();
+    }
+};
+
+class ParallelSearchManager {
+private:
+    std::unique_ptr<SearchTaskManager> task_manager;
+    std::unique_ptr<Mate::MateSearcher> mate_searcher;
+    std::atomic<bool> mate_search_active{false};
+    Mate::MateResult latest_mate_result;
+
+public:
+    ParallelSearchManager();
+    ~ParallelSearchManager();
+
+    // 並列探索の初期化
+    void initialize(size_t num_threads = std::thread::hardware_concurrency());
+
+    // 並列探索の開始
+    void start_parallel_search(Position &rootPos, int max_depth, TimePoint time_limit);
+
+    // ルートノードの並列探索
+    void search_root_moves_parallel(Position &pos, int depth, Value alpha, Value beta);
+
+    // 詰み探索の開始
+    void start_mate_search(Position &rootPos, int mate_depth);
+
+    // 詰み探索結果の確認
+    bool check_mate_result();
+
+    // 全探索の停止
+    void stop_all_searches();
+
+    // 統計情報の取得
+    struct SearchStats {
+        uint64_t total_nodes;
+        uint64_t mate_nodes;
+        int active_threads;
+        bool mate_found;
+        TimePoint search_time;
+    };
+
+    SearchStats get_search_stats() const;
+
+private:
+    void cleanup_searches();
+    void merge_mate_results();
+};
+
+// グローバルな並列探索マネージャー
+extern std::unique_ptr<ParallelSearchManager> parallelManager;
+
+// SearchTaskManagerのテンプレート実装
+template<class F>
+void Search::SearchTaskManager::run_search_task(const std::string& task_type, F&& f) {
+  if (!thread_pool || search_stopped) return;
+
+  thread_pool->run_custom_jobs([&](size_t thread_id) {
+    if (search_stopped) return;
+    f(thread_id);
+  });
+}
+
 } // namespace Search
 
 #endif // !SEARCH_H_
