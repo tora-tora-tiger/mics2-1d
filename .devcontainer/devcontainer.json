@@ -32,7 +32,8 @@
         "MermaidChart.vscode-mermaid-chart",
         "oderwat.indent-rainbow",
         "mhutchie.git-graph",
-        "James-Yu.latex-workshop"
+        "James-Yu.latex-workshop",
+        "openai.chatgpt"
       ]
     }
   },

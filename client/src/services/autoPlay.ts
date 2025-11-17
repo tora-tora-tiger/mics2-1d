@@ -112,7 +112,7 @@ const autoPlay = async (config: AutoPlayConfig): Promise<Record> => {
 
 const black: AutoPlayColorConfig = {
   engineName: "latest",
-  displayName: "~~並列2~~ハッシュ"
+  // displayName: "~~並列2~~ハッシュ"
 };
 const white: AutoPlayColorConfig = {
   // engineName: "latest",
@@ -122,17 +122,17 @@ const white: AutoPlayColorConfig = {
 };
 console.time('autoPlay');
 Promise.all([
-  // autoPlay({
-  //   limitStep: 100,
-  //   black,
-  //   white,
-  // }),
-  // 自動対局を逆向きに実行（白番先手）
   autoPlay({
     limitStep: 100,
-    black: white,
-    white: black,
+    black,
+    white,
   }),
+  // 自動対局を逆向きに実行（白番先手）
+  // autoPlay({
+  //   limitStep: 100,
+  //   black: white,
+  //   white: black,
+  // }),
 ]).then(records => {
   console.timeEnd('autoPlay');
   const dir = './data/record/';

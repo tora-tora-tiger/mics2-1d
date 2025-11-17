@@ -200,23 +200,28 @@ void Search::search(Position &pos) {
             value = (-1) * alphabeta_search(pos, pv, alpha, beta, depth-1, 1); // 指定深さで探索
           }
           const bool valid = is_valid_value(value);
-          if(valid) {
-            // PVの更新：探索から得られたPVを尊重（破壊しない）
+          if (valid) {
             rootMoves[i].pv.clear();
             rootMoves[i].pv.emplace_back(move);
             if (!pv.empty()) {
-                rootMoves[i].pv.insert(rootMoves[i].pv.end(), pv.begin(), pv.end());
+              rootMoves[i].pv.insert(rootMoves[i].pv.end(), pv.begin(), pv.end());
             }
-            
-            // rootMovesのスコアを更新
             rootMoves[i].score = value;
-            rootMoves[i].selDepth = depth; // 選択深さを設定
-            
+            rootMoves[i].selDepth = depth;
+          } else {
+            // 無効値なら最新手だけ記録し、スコアは極端に低くして並び替え対象から外す
+            rootMoves[i].pv.clear();
+            rootMoves[i].pv.emplace_back(move);
+            rootMoves[i].score = -VALUE_INFINITE;
+            rootMoves[i].selDepth = depth;
           }
-          // 局面を1手戻す
+
           pos.undo_move(move);
-          
-          if(valid && chmax(currentMaxValue, value)) {
+
+          if(!valid)
+            continue;
+
+          if(chmax(currentMaxValue, value)) {
             currentBestMove = move;
           }
           // [TODO] debug ソートが多すぎるので本来は深化するごとに一回だけ
