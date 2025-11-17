@@ -76,7 +76,7 @@ RUN wget ${TEXLIVE_MIRROR}/install-tl-unx.tar.gz \
     && rm -rf /texlive-install/install-tl* /texlive-install/*
 
 # latexmk のインストール
-RUN /usr/local/texlive/bin/*/tlmgr install latexmk || true
+RUN /usr/local/texlive/bin/tlmgr install latexmk
 
 # Ghostscript と Gnuplot のインストール（非対話）
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \

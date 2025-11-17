@@ -20,7 +20,8 @@
           "*.cpp": "cpp",
           "*.h": "c",
           "*.hpp": "cpp"
-        }
+        },
+        "latex-workshop.latex.recipe.default": "latexmk (latexmkrc)"
       },
       "extensions": [
         "ms-vscode.cpptools",
@@ -30,7 +31,8 @@
         "Anthropic.claude-code",
         "MermaidChart.vscode-mermaid-chart",
         "oderwat.indent-rainbow",
-        "mhutchie.git-graph"
+        "mhutchie.git-graph",
+        "James-Yu.latex-workshop"
       ]
     }
   },
